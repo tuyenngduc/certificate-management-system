@@ -12,41 +12,60 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var MongoClient *mongo.Client
-var MongoDB *mongo.Database
+var (
+	Client *mongo.Client
+	DB     *mongo.Database
+)
 
-func ConnectMongo() {
-	// Load biến môi trường từ .env
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("⚠️  Không tìm thấy file .env, đang dùng biến môi trường hệ thống")
+func init() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("Không thể load file .env hoặc không tồn tại, dùng biến môi trường hệ thống")
 	}
+}
 
-	mongoURI := os.Getenv("MONGODB_URI")
-	dbName := os.Getenv("DB_NAME")
-
-	if mongoURI == "" || dbName == "" {
-		log.Fatal("❌ Thiếu biến MONGODB_URI hoặc DB_NAME")
-	}
-
-	// Kết nối MongoDB
+func ConnectMongo() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	clientOptions := options.Client().ApplyURI(mongoURI)
+	uri := os.Getenv("MONGODB_URI")
+	if uri == "" {
+		return fmt.Errorf("biến môi trường MONGODB_URI chưa được thiết lập")
+	}
+
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "vbcc_data"
+	}
+
+	clientOptions := options.Client().ApplyURI(uri)
+
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Fatalf("❌ Kết nối MongoDB thất bại: %v", err)
+		return fmt.Errorf("kết nối MongoDB thất bại: %w", err)
 	}
 
-	// Kiểm tra kết nối
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		log.Fatalf("❌ Không thể ping MongoDB: %v", err)
+	if err := client.Ping(ctx, nil); err != nil {
+		return fmt.Errorf("ping MongoDB thất bại: %w", err)
 	}
 
-	MongoClient = client
-	MongoDB = client.Database(dbName)
+	Client = client
+	DB = client.Database(dbName)
 
-	fmt.Println("✅ Đã kết nối MongoDB thành công")
+	log.Println("MongoDB kết nối thành công với DB:", dbName)
+	return nil
+}
+
+func CloseMongo() error {
+	if Client == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := Client.Disconnect(ctx); err != nil {
+		return fmt.Errorf("đóng kết nối MongoDB lỗi: %w", err)
+	}
+	log.Println("MongoDB đã đóng kết nối thành công")
+	return nil
 }
