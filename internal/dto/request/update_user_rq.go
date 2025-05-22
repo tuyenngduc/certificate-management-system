@@ -2,6 +2,8 @@ package request
 
 type UpdateUserRequest struct {
 	FullName     string `json:"full_name" binding:"omitempty,min=3,max=100"`
+	Email        string `json:"email" binding:"omitempty,email"`
+	StudentID    string `json:"student_id" binding:"omitempty"`
 	Ethnicity    string `json:"ethnicity" binding:"omitempty"`
 	Gender       string `json:"gender" binding:"omitempty,oneof=male female other"`
 	Major        string `json:"major" binding:"omitempty"`

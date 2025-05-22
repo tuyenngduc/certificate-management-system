@@ -42,6 +42,14 @@ func (r *UserRepository) FindByNationalID(ctx context.Context, nationalID string
 	}
 	return &user, nil
 }
+func (r *UserRepository) FindByStudentID(ctx context.Context, id string) (*models.User, error) {
+	var user models.User
+	err := r.collection.FindOne(ctx, bson.M{"studentId": id}).Decode(&user)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
 
 func (r *UserRepository) FindByPhoneNumber(ctx context.Context, phone string) (*models.User, error) {
 	var user models.User
@@ -67,6 +75,10 @@ func (r *UserRepository) EnsureIndexes(ctx context.Context) error {
 			Keys:    bson.D{{Key: "phoneNumber", Value: 1}},
 			Options: options.Index().SetUnique(true).SetSparse(true),
 		},
+		{
+			Keys:    bson.D{{Key: "studentId", Value: 1}},
+			Options: options.Index().SetUnique(true).SetSparse(true),
+		},
 	}
 	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
 	return err
@@ -90,7 +102,7 @@ func (r *UserRepository) FindAll(ctx context.Context) ([]*models.User, error) {
 	return users, nil
 }
 
-func (r *UserRepository) Search(ctx context.Context, fullName, email, nationalID, phone string) ([]*models.User, error) {
+func (r *UserRepository) Search(ctx context.Context, fullName, email, nationalID, phone, studentID string) ([]*models.User, error) {
 	filter := bson.M{}
 	if fullName != "" {
 		filter["fullName"] = bson.M{"$regex": fullName, "$options": "i"} // tìm gần đúng, không phân biệt hoa thường
@@ -103,6 +115,9 @@ func (r *UserRepository) Search(ctx context.Context, fullName, email, nationalID
 	}
 	if phone != "" {
 		filter["phoneNumber"] = phone
+	}
+	if studentID != "" {
+		filter["studentId"] = studentID
 	}
 
 	cursor, err := r.collection.Find(ctx, filter)

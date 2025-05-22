@@ -32,6 +32,11 @@ func (s *UserService) CreateUser(ctx context.Context, user *models.User) error {
 			return errors.New("số điện thoại đã tồn tại")
 		}
 	}
+	if user.StudentID != "" {
+		if exist, _ := s.repo.FindByStudentID(ctx, user.StudentID); exist != nil {
+			return errors.New("mã sinh viên đã được đăng ký tài khoản")
+		}
+	}
 	return s.repo.Insert(ctx, user)
 }
 func (s *UserService) UpdateUser(ctx context.Context, id string, req *request.UpdateUserRequest) error {
@@ -66,6 +71,20 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req *request.Up
 		}
 		update["nationalId"] = req.NationalID
 	}
+	if req.StudentID != "" {
+		// Kiểm tra unique
+		if exist, _ := s.repo.FindByStudentID(ctx, req.StudentID); exist != nil && exist.ID != objID {
+			return errors.New("mã sinh viên đã tồn tại")
+		}
+		update["studentId"] = req.StudentID
+	}
+	if req.Email != "" {
+		// Kiểm tra unique
+		if exist, _ := s.repo.FindByEmail(ctx, req.Email); exist != nil && exist.ID != objID {
+			return errors.New("email đã tồn tại")
+		}
+		update["email"] = req.Email
+	}
 	if req.Address != "" {
 		update["address"] = req.Address
 	}
@@ -98,8 +117,8 @@ func (s *UserService) GetAllUsers(ctx context.Context) ([]*models.User, error) {
 	return s.repo.FindAll(ctx)
 }
 
-func (s *UserService) SearchUsers(ctx context.Context, fullName, email, nationalID, phone string) ([]*models.User, error) {
-	return s.repo.Search(ctx, fullName, email, nationalID, phone)
+func (s *UserService) SearchUsers(ctx context.Context, fullName, email, nationalID, phone, studentID string) ([]*models.User, error) {
+	return s.repo.Search(ctx, fullName, email, nationalID, phone, studentID)
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, id string) error {

@@ -34,6 +34,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	user := &models.User{
 		FullName:     req.FullName,
+		StudentID:    req.StudentID,
 		Email:        req.Email,
 		Ethnicity:    req.Ethnicity,
 		Gender:       req.Gender,
@@ -132,7 +133,7 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 			results = append(results, map[string]interface{}{"row": i + 1, "error": "Thiếu dữ liệu"})
 			continue
 		}
-		dob, err := time.Parse("02/01/2006", row[10])
+		dob, err := time.Parse("02/01/2006", row[11])
 		if err != nil {
 			results = append(results, map[string]interface{}{"row": i + 1, "error": "Sai định dạng ngày sinh"})
 			continue
@@ -140,14 +141,15 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 		user := &models.User{
 			FullName:     row[0],
 			Email:        row[1],
-			Ethnicity:    row[2],
-			Gender:       row[3],
-			Major:        row[4],
-			Class:        row[5],
-			Course:       row[6],
-			NationalID:   row[7],
-			Address:      row[8],
-			PlaceOfBirth: row[9],
+			StudentID:    row[2],
+			Ethnicity:    row[3],
+			Gender:       row[4],
+			Major:        row[5],
+			Class:        row[6],
+			Course:       row[7],
+			NationalID:   row[8],
+			Address:      row[9],
+			PlaceOfBirth: row[10],
 			DateOfBirth:  dob,
 			PhoneNumber:  row[11],
 		}
@@ -175,8 +177,9 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 	email := c.Query("email")
 	nationalID := c.Query("national_id")
 	phone := c.Query("phone_number")
+	studentID := c.Query("student_id")
 
-	users, err := h.svc.SearchUsers(c.Request.Context(), fullName, email, nationalID, phone)
+	users, err := h.svc.SearchUsers(c.Request.Context(), fullName, email, nationalID, phone, studentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
