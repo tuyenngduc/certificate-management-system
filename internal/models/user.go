@@ -8,17 +8,17 @@ import (
 
 type User struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	StudentID    string             `bson:"studentId" json:"student_id" validate:"required"`
-	FullName     string             `bson:"fullName" json:"full_name" validate:"required,min=3,max=100"`
-	Email        string             `bson:"email" json:"email" validate:"required,email"`
-	Ethnicity    string             `bson:"ethnicity" json:"ethnicity" validate:"required"`
-	Gender       string             `bson:"gender" json:"gender" validate:"required,oneof=male female other"`
-	Major        string             `bson:"major" json:"major" validate:"required"`
-	Class        string             `bson:"class" json:"class" validate:"required"`
-	Course       string             `bson:"course" json:"course" validate:"required"`
-	NationalID   string             `bson:"nationalId" json:"national_id" validate:"required,len=12,numeric"`
-	Address      string             `bson:"address" json:"address" validate:"required"`
-	PlaceOfBirth string             `bson:"placeOfBirth" json:"place_of_birth" validate:"required"`
-	DateOfBirth  time.Time          `bson:"dateOfBirth" json:"date_of_birth" validate:"required"`
-	PhoneNumber  string             `bson:"phoneNumber,omitempty" json:"phone_number,omitempty" validate:"omitempty,e164"`
+	StudentID    string             `bson:"studentId" json:"student_id"`
+	FullName     string             `bson:"fullName" json:"full_name"`
+	Email        string             `bson:"email" json:"email"`
+	Ethnicity    string             `bson:"ethnicity" json:"ethnicity"`
+	Gender       string             `bson:"gender" json:"gender"`
+	FacultyID    primitive.ObjectID `bson:"facultyId" json:"faculty_id"`
+	ClassID      primitive.ObjectID `bson:"classId" json:"class_id"`
+	Course       string             `bson:"course" json:"course"`
+	NationalID   string             `bson:"nationalId" json:"national_id"`
+	Address      string             `bson:"address" json:"address"`
+	PlaceOfBirth string             `bson:"placeOfBirth" json:"place_of_birth"`
+	DateOfBirth  time.Time          `bson:"dateOfBirth" json:"date_of_birth"`
+	PhoneNumber  string             `bson:"phoneNumber,omitempty" json:"phone_number,omitempty"`
 }

@@ -17,12 +17,23 @@ func main() {
 	}
 
 	db := database.DB
-	userRepo := repository.NewUserRepository(db)
-	_ = userRepo.EnsureIndexes(context.Background())
-	userSvc := service.NewUserService(userRepo)
-	userHandler := handler.NewUserHandler(userSvc)
 
-	r := routes.SetupRouter((userHandler))
+	// Khởi tạo repository
+	userRepo := repository.NewUserRepository(db)
+	trainingDepartmentRepo := repository.NewTrainingDepartmentRepository(db)
+	_ = userRepo.EnsureIndexes(context.Background())
+
+	// Khởi tạo service
+	userSvc := service.NewUserService(userRepo, trainingDepartmentRepo)
+	trainingDepartmentSvc := service.NewTrainingDepartmentService(trainingDepartmentRepo)
+
+	// Khởi tạo handler
+	userHandler := handler.NewUserHandler(userSvc)
+	trainingDepartmentHandler := handler.NewTrainingDepartmentHandler(trainingDepartmentSvc)
+
+	// Khởi tạo router
+	r := routes.SetupRouter(userHandler, trainingDepartmentHandler)
+
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Lỗi khi khởi động server: %v", err)
 	}

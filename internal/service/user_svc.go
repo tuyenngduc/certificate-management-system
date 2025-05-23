@@ -13,20 +13,23 @@ import (
 )
 
 type UserService struct {
-	repo *repository.UserRepository
+	repo                   *repository.UserRepository
+	trainingDepartmentRepo *repository.TrainingDepartmentRepository
 }
 
-func NewUserService(repo *repository.UserRepository) *UserService {
-	return &UserService{repo: repo}
+func NewUserService(repo *repository.UserRepository, trainingDepartmentRepo *repository.TrainingDepartmentRepository) *UserService {
+	return &UserService{repo: repo, trainingDepartmentRepo: trainingDepartmentRepo}
 }
 
 func (s *UserService) CreateUser(ctx context.Context, user *models.User) error {
+
 	if exist, _ := s.repo.FindByEmail(ctx, user.Email); exist != nil {
 		return errors.New("email đã tồn tại")
 	}
 	if exist, _ := s.repo.FindByNationalID(ctx, user.NationalID); exist != nil {
 		return errors.New("CCCD/CMND đã tồn tại")
 	}
+
 	if user.PhoneNumber != "" {
 		if exist, _ := s.repo.FindByPhoneNumber(ctx, user.PhoneNumber); exist != nil {
 			return errors.New("số điện thoại đã tồn tại")
@@ -39,7 +42,7 @@ func (s *UserService) CreateUser(ctx context.Context, user *models.User) error {
 	}
 	return s.repo.Insert(ctx, user)
 }
-func (s *UserService) UpdateUser(ctx context.Context, id string, req *request.UpdateUserRequest) error {
+func (s *UserService) UpdateUser(ctx context.Context, id string, req *request.CreateUserRequest) error {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return errors.New("id không hợp lệ")
@@ -55,11 +58,19 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req *request.Up
 	if req.Gender != "" {
 		update["gender"] = req.Gender
 	}
-	if req.Major != "" {
-		update["major"] = req.Major
+	if req.FacultyCode != "" {
+		faculty, err := s.FindFacultyByCode(ctx, req.FacultyCode)
+		if err != nil || faculty == nil {
+			return errors.New("Không tìm thấy khoa với mã " + req.FacultyCode)
+		}
+		update["facultyId"] = faculty.ID
 	}
-	if req.Class != "" {
-		update["class"] = req.Class
+	if req.ClassCode != "" {
+		class, err := s.FindClassByCode(ctx, req.ClassCode)
+		if err != nil || class == nil {
+			return errors.New("Không tìm thấy lớp với mã " + req.ClassCode)
+		}
+		update["classId"] = class.ID
 	}
 	if req.Course != "" {
 		update["course"] = req.Course
@@ -134,4 +145,20 @@ func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 		return errors.New("user không tồn tại")
 	}
 	return nil
+}
+
+func (s *UserService) FindFacultyByCode(ctx context.Context, code string) (*models.Faculty, error) {
+	return s.trainingDepartmentRepo.FindFacultyByCode(ctx, code)
+}
+
+func (s *UserService) FindClassByCode(ctx context.Context, code string) (*models.Class, error) {
+	return s.trainingDepartmentRepo.FindClassByCode(ctx, code)
+}
+
+func (s *UserService) GetAllFaculties(ctx context.Context) ([]models.Faculty, error) {
+	return s.trainingDepartmentRepo.GetAllFaculties(ctx)
+}
+
+func (s *UserService) GetAllClasses(ctx context.Context) ([]models.Class, error) {
+	return s.trainingDepartmentRepo.GetAllClasses(ctx)
 }

@@ -1,14 +1,18 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/tuyenngduc/certificate-management-system/internal/dto/request"
+	"github.com/tuyenngduc/certificate-management-system/internal/dto/response"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
 	"github.com/xuri/excelize/v2"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type UserHandler struct {
@@ -22,7 +26,16 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req request.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			for _, fe := range ve {
+				if msg, ok := request.ValidateMessages[fe.Field()][fe.Tag()]; ok {
+					c.JSON(400, gin.H{"error": msg})
+					return
+				}
+			}
+		}
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -32,14 +45,27 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	// Tìm faculty theo code
+	faculty, err := h.svc.FindFacultyByCode(c.Request.Context(), req.FacultyCode)
+	if err != nil || faculty == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy khoa với mã " + req.FacultyCode})
+		return
+	}
+	// Tìm class theo code
+	class, err := h.svc.FindClassByCode(c.Request.Context(), req.ClassCode)
+	if err != nil || class == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy lớp với mã " + req.ClassCode})
+		return
+	}
+
 	user := &models.User{
 		FullName:     req.FullName,
 		StudentID:    req.StudentID,
 		Email:        req.Email,
 		Ethnicity:    req.Ethnicity,
 		Gender:       req.Gender,
-		Major:        req.Major,
-		Class:        req.Class,
+		FacultyID:    faculty.ID,
+		ClassID:      class.ID,
 		Course:       req.Course,
 		NationalID:   req.NationalID,
 		Address:      req.Address,
@@ -50,7 +76,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	err = h.svc.CreateUser(c.Request.Context(), user)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "Tạo user thành công"})
@@ -63,21 +89,43 @@ func (h *UserHandler) BulkCreateUser(c *gin.Context) {
 		return
 	}
 
-	var results []map[string]interface{}
+	var (
+		results      []map[string]interface{}
+		successCount int
+	)
+
 	for _, u := range req.Users {
-		// Parse date, validate, map sang models.User như CreateUser
+		result := map[string]interface{}{"email": u.Email}
+
 		dob, err := time.Parse("02/01/2006", u.DateOfBirth)
 		if err != nil {
-			results = append(results, map[string]interface{}{"email": u.Email, "error": "Sai định dạng ngày sinh"})
+			result["error"] = "Sai định dạng ngày sinh (dd/mm/yyyy)"
+			results = append(results, result)
 			continue
 		}
+
+		faculty, err := h.svc.FindFacultyByCode(c.Request.Context(), u.FacultyCode)
+		if err != nil || faculty == nil {
+			result["error"] = "Không tìm thấy khoa với mã " + u.FacultyCode
+			results = append(results, result)
+			continue
+		}
+
+		class, err := h.svc.FindClassByCode(c.Request.Context(), u.ClassCode)
+		if err != nil || class == nil {
+			result["error"] = "Không tìm thấy lớp với mã " + u.ClassCode
+			results = append(results, result)
+			continue
+		}
+
 		user := &models.User{
 			FullName:     u.FullName,
+			StudentID:    u.StudentID,
 			Email:        u.Email,
 			Ethnicity:    u.Ethnicity,
 			Gender:       u.Gender,
-			Major:        u.Major,
-			Class:        u.Class,
+			FacultyID:    faculty.ID,
+			ClassID:      class.ID,
 			Course:       u.Course,
 			NationalID:   u.NationalID,
 			Address:      u.Address,
@@ -85,14 +133,29 @@ func (h *UserHandler) BulkCreateUser(c *gin.Context) {
 			DateOfBirth:  dob,
 			PhoneNumber:  u.PhoneNumber,
 		}
-		err = h.svc.CreateUser(c.Request.Context(), user)
-		if err != nil {
-			results = append(results, map[string]interface{}{"email": u.Email, "error": err.Error()})
+
+		if err := h.svc.CreateUser(c.Request.Context(), user); err != nil {
+			result["error"] = err.Error()
 		} else {
-			results = append(results, map[string]interface{}{"email": u.Email, "status": "created"})
+			result["status"] = "created"
+			successCount++
 		}
+
+		results = append(results, result)
 	}
-	c.JSON(http.StatusCreated, gin.H{"results": results})
+
+	if successCount == len(req.Users) {
+		c.JSON(http.StatusCreated, gin.H{
+			"success_count": successCount,
+			"results":       results,
+		})
+	} else {
+		c.JSON(207, gin.H{
+			"success_count": successCount,
+			"error_count":   len(req.Users) - successCount,
+			"results":       results,
+		})
+	}
 }
 
 func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
@@ -124,43 +187,82 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 		}
 	}
 
-	var results []map[string]interface{}
+	var (
+		results      []map[string]interface{}
+		successCount int
+	)
+
 	for i, row := range rows {
 		if i == 0 {
-			continue // Bỏ qua dòng tiêu đề
+			continue // Bỏ qua header
 		}
-		if len(row) < 12 {
-			results = append(results, map[string]interface{}{"row": i + 1, "error": "Thiếu dữ liệu"})
+
+		result := map[string]interface{}{"row": i + 1}
+
+		if len(row) < 13 {
+			result["error"] = "Thiếu dữ liệu"
+			results = append(results, result)
 			continue
 		}
+
 		dob, err := time.Parse("02/01/2006", row[11])
 		if err != nil {
-			results = append(results, map[string]interface{}{"row": i + 1, "error": "Sai định dạng ngày sinh"})
+			result["error"] = "Sai định dạng ngày sinh (dd/mm/yyyy)"
+			results = append(results, result)
 			continue
 		}
+
+		faculty, err := h.svc.FindFacultyByCode(c.Request.Context(), row[5])
+		if err != nil || faculty == nil {
+			result["error"] = "Không tìm thấy khoa với mã " + row[5]
+			results = append(results, result)
+			continue
+		}
+		class, err := h.svc.FindClassByCode(c.Request.Context(), row[6])
+		if err != nil || class == nil {
+			result["error"] = "Không tìm thấy lớp với mã " + row[6]
+			results = append(results, result)
+			continue
+		}
+
 		user := &models.User{
 			FullName:     row[0],
 			Email:        row[1],
 			StudentID:    row[2],
 			Ethnicity:    row[3],
 			Gender:       row[4],
-			Major:        row[5],
-			Class:        row[6],
+			FacultyID:    faculty.ID,
+			ClassID:      class.ID,
 			Course:       row[7],
 			NationalID:   row[8],
 			Address:      row[9],
 			PlaceOfBirth: row[10],
 			DateOfBirth:  dob,
-			PhoneNumber:  row[11],
+			PhoneNumber:  row[12],
 		}
-		err = h.svc.CreateUser(c.Request.Context(), user)
-		if err != nil {
-			results = append(results, map[string]interface{}{"row": i + 1, "error": err.Error()})
+
+		if err := h.svc.CreateUser(c.Request.Context(), user); err != nil {
+			result["error"] = err.Error()
 		} else {
-			results = append(results, map[string]interface{}{"row": i + 1, "status": "created"})
+			result["status"] = "created"
+			successCount++
 		}
+		results = append(results, result)
 	}
-	c.JSON(http.StatusCreated, gin.H{"results": results})
+
+	// Trả về HTTP code phù hợp
+	if successCount == len(results) {
+		c.JSON(http.StatusCreated, gin.H{
+			"success_count": successCount,
+			"results":       results,
+		})
+	} else {
+		c.JSON(http.StatusMultiStatus, gin.H{
+			"success_count": successCount,
+			"error_count":   len(results) - successCount,
+			"results":       results,
+		})
+	}
 }
 
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
@@ -169,7 +271,38 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, users)
+	faculties, _ := h.svc.GetAllFaculties(c.Request.Context())
+	classes, _ := h.svc.GetAllClasses(c.Request.Context())
+
+	facultyMap := make(map[primitive.ObjectID]string)
+	for _, f := range faculties {
+		facultyMap[f.ID] = f.Code
+	}
+	classMap := make(map[primitive.ObjectID]string)
+	for _, cl := range classes {
+		classMap[cl.ID] = cl.Code
+	}
+
+	var resp []*response.UserResponse
+	for _, u := range users {
+		resp = append(resp, &response.UserResponse{
+			ID:           u.ID.Hex(),
+			StudentID:    u.StudentID,
+			FullName:     u.FullName,
+			Email:        u.Email,
+			Ethnicity:    u.Ethnicity,
+			Gender:       u.Gender,
+			FacultyCode:  facultyMap[u.FacultyID],
+			ClassCode:    classMap[u.ClassID],
+			Course:       u.Course,
+			NationalID:   u.NationalID,
+			Address:      u.Address,
+			PlaceOfBirth: u.PlaceOfBirth,
+			DateOfBirth:  u.DateOfBirth.Format("02/01/2006"),
+			PhoneNumber:  u.PhoneNumber,
+		})
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *UserHandler) SearchUsers(c *gin.Context) {
@@ -189,9 +322,18 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	id := c.Param("id")
-	var req request.UpdateUserRequest
+	var req request.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			for _, fe := range ve {
+				if msg, ok := request.ValidateMessages[fe.Field()][fe.Tag()]; ok {
+					c.JSON(400, gin.H{"error": msg})
+					return
+				}
+			}
+		}
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 	err := h.svc.UpdateUser(c.Request.Context(), id, &req)
@@ -206,6 +348,10 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	err := h.svc.DeleteUser(c.Request.Context(), id)
 	if err != nil {
+		if err.Error() == "user không tồn tại" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
