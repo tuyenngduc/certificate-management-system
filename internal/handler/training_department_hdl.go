@@ -127,6 +127,19 @@ func (h *TrainingDepartmentHandler) DeleteFaculty(c *gin.Context) {
 }
 
 // Class CRUD
+func (h *TrainingDepartmentHandler) GetClassesByFaculty(c *gin.Context) {
+	facultyID := c.Param("faculty_id")
+	classes, err := h.svc.GetClassesByFacultyID(c.Request.Context(), facultyID)
+	if err != nil {
+		if err.Error() == "ID khoa không hợp lệ" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, classes)
+}
 func (h *TrainingDepartmentHandler) CreateClass(c *gin.Context) {
 	var req request.CreateClassRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -147,6 +160,14 @@ func (h *TrainingDepartmentHandler) CreateClass(c *gin.Context) {
 	if err != nil {
 		if err.Error() == "mã lớp đã tồn tại" {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "ID khoa không hợp lệ" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "ID khoa không tồn tại" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -255,12 +276,17 @@ func (h *TrainingDepartmentHandler) CreateLecturer(c *gin.Context) {
 
 	err := h.svc.CreateLecturer(c.Request.Context(), &req)
 	if err != nil {
-		if err.Error() == "mã giảng viên đã tồn tại" {
+		switch err.Error() {
+		case "mã giảng viên đã tồn tại":
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
+		case "ID khoa không hợp lệ", "ID khoa không tồn tại":
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Tạo giảng viên thành công"})
@@ -287,6 +313,24 @@ func (h *TrainingDepartmentHandler) GetLecturerByID(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, lecturer)
+}
+func (h *TrainingDepartmentHandler) GetLecturersByFaculty(c *gin.Context) {
+	facultyID := c.Param("faculty_id")
+	lecturers, err := h.svc.GetLecturersByFacultyID(c.Request.Context(), facultyID)
+	if err != nil {
+		switch err.Error() {
+		case "ID khoa không hợp lệ":
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		case "khoa không tồn tại":
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, lecturers)
 }
 func (h *TrainingDepartmentHandler) UpdateLecturer(c *gin.Context) {
 	id := c.Param("id")

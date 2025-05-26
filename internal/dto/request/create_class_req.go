@@ -1,8 +1,9 @@
 package request
 
 type CreateClassRequest struct {
-	Code   string `json:"code" binding:"required,min=2,max=20"`
-	Course string `json:"course" binding:"required,min=4,max=9"` // Ví dụ: 2021 hoặc "2021-2025"
+	Code      string `json:"code" binding:"required,min=2,max=20"`
+	Course    string `json:"course" binding:"required,min=4,max=9"`
+	FacultyID string `json:"faculty_id" binding:"required"` // ID khoa (ObjectID dạng string)
 }
 
 var ClassValidateMessages = map[string]map[string]string{
@@ -15,5 +16,8 @@ var ClassValidateMessages = map[string]map[string]string{
 		"required": "Khoá học là bắt buộc",
 		"min":      "Khoá học phải có ít nhất 4 ký tự",
 		"max":      "Khoá học không được vượt quá 9 ký tự",
+	},
+	"FacultyID": {
+		"required": "ID khoa là bắt buộc",
 	},
 }

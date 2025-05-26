@@ -60,6 +60,7 @@ func (r *TrainingDepartmentRepository) GetFacultyByID(ctx context.Context, id pr
 	}
 	return &faculty, nil
 }
+
 func (r *TrainingDepartmentRepository) UpdateFaculty(ctx context.Context, id primitive.ObjectID, update bson.M) error {
 	_, err := r.FacultyCol.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
 	return err
@@ -81,6 +82,21 @@ func (r *TrainingDepartmentRepository) FindFacultyByCode(ctx context.Context, co
 }
 
 // Class CRUD
+func (r *TrainingDepartmentRepository) GetClassesByFacultyID(ctx context.Context, facultyID primitive.ObjectID) ([]models.Class, error) {
+	var classes []models.Class
+	cursor, err := r.ClassCol.Find(ctx, bson.M{"faculty_id": facultyID})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		var class models.Class
+		if err := cursor.Decode(&class); err == nil {
+			classes = append(classes, class)
+		}
+	}
+	return classes, nil
+}
 func (r *TrainingDepartmentRepository) FindClassByCode(ctx context.Context, code string) (*models.Class, error) {
 	var class models.Class
 	err := r.ClassCol.FindOne(ctx, bson.M{"code": code}).Decode(&class)
@@ -147,6 +163,21 @@ func (r *TrainingDepartmentRepository) GetAllLecturers(ctx context.Context) ([]m
 		var l models.Lecturer
 		if err := cursor.Decode(&l); err == nil {
 			lecturers = append(lecturers, l)
+		}
+	}
+	return lecturers, nil
+}
+func (r *TrainingDepartmentRepository) GetLecturersByFacultyID(ctx context.Context, facultyID primitive.ObjectID) ([]models.Lecturer, error) {
+	var lecturers []models.Lecturer
+	cursor, err := r.LecturerCol.Find(ctx, bson.M{"faculty_id": facultyID})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		var lecturer models.Lecturer
+		if err := cursor.Decode(&lecturer); err == nil {
+			lecturers = append(lecturers, lecturer)
 		}
 	}
 	return lecturers, nil

@@ -21,6 +21,7 @@ func main() {
 	// Khởi tạo repository
 	userRepo := repository.NewUserRepository(db)
 	trainingDepartmentRepo := repository.NewTrainingDepartmentRepository(db)
+
 	_ = userRepo.EnsureIndexes(context.Background())
 
 	// Khởi tạo service
@@ -33,7 +34,6 @@ func main() {
 
 	// Khởi tạo router
 	r := routes.SetupRouter(userHandler, trainingDepartmentHandler)
-
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Lỗi khi khởi động server: %v", err)
 	}

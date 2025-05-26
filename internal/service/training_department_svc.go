@@ -86,14 +86,30 @@ func (s *TrainingDepartmentService) FindFacultyByCode(ctx context.Context, code 
 }
 
 // Class
+func (s *TrainingDepartmentService) GetClassesByFacultyID(ctx context.Context, facultyID string) ([]models.Class, error) {
+	objID, err := primitive.ObjectIDFromHex(facultyID)
+	if err != nil {
+		return nil, errors.New("ID khoa không hợp lệ")
+	}
+	return s.repo.GetClassesByFacultyID(ctx, objID)
+}
 func (s *TrainingDepartmentService) CreateClass(ctx context.Context, req *request.CreateClassRequest) error {
 	exist, _ := s.repo.FindClassByCode(ctx, req.Code)
 	if exist != nil {
 		return errors.New("mã lớp đã tồn tại")
 	}
+	facultyID, err := primitive.ObjectIDFromHex(req.FacultyID)
+	if err != nil {
+		return errors.New("ID khoa không hợp lệ")
+	}
+	faculty, _ := s.repo.GetFacultyByID(ctx, facultyID)
+	if faculty == nil {
+		return errors.New("ID khoa không tồn tại")
+	}
 	return s.repo.CreateClass(ctx, &models.Class{
-		Code:   req.Code,
-		Course: req.Course,
+		Code:      req.Code,
+		Course:    req.Course,
+		FacultyID: facultyID,
 	})
 }
 func (s *TrainingDepartmentService) GetAllClasses(ctx context.Context) ([]models.Class, error) {
@@ -116,7 +132,6 @@ func (s *TrainingDepartmentService) UpdateClass(ctx context.Context, id string, 
 
 	update := bson.M{}
 	if req.Code != "" {
-		// Kiểm tra mã lớp đã tồn tại cho class khác
 		exist, _ := s.repo.FindClassByCode(ctx, req.Code)
 		if exist != nil && exist.ID != objID {
 			return errors.New("mã lớp đã tồn tại")
@@ -125,6 +140,17 @@ func (s *TrainingDepartmentService) UpdateClass(ctx context.Context, id string, 
 	}
 	if req.Course != "" {
 		update["course"] = req.Course
+	}
+	if req.FacultyID != "" {
+		facultyID, err := primitive.ObjectIDFromHex(req.FacultyID)
+		if err != nil {
+			return errors.New("ID khoa không hợp lệ")
+		}
+		faculty, _ := s.repo.GetFacultyByID(ctx, facultyID)
+		if faculty == nil {
+			return errors.New("ID khoa không tồn tại")
+		}
+		update["faculty_id"] = facultyID
 	}
 	if len(update) == 0 {
 		return errors.New("không có dữ liệu cập nhật")
@@ -153,13 +179,34 @@ func (s *TrainingDepartmentService) CreateLecturer(ctx context.Context, req *req
 		return errors.New("mã giảng viên đã tồn tại")
 	}
 
+	facultyID, err := primitive.ObjectIDFromHex(req.FacultyID)
+	if err != nil {
+		return errors.New("ID khoa không hợp lệ")
+	}
+	faculty, _ := s.repo.GetFacultyByID(ctx, facultyID)
+	if faculty == nil {
+		return errors.New("ID khoa không tồn tại")
+	}
+
 	return s.repo.CreateLecturer(ctx, &models.Lecturer{
-		ID:       primitive.NewObjectID(),
-		Code:     req.Code,
-		FullName: req.FullName,
-		Email:    req.Email,
-		Title:    req.Title,
+		ID:        primitive.NewObjectID(),
+		Code:      req.Code,
+		FullName:  req.FullName,
+		Email:     req.Email,
+		Title:     req.Title,
+		FacultyID: facultyID,
 	})
+}
+func (s *TrainingDepartmentService) GetLecturersByFacultyID(ctx context.Context, facultyID string) ([]models.Lecturer, error) {
+	objID, err := primitive.ObjectIDFromHex(facultyID)
+	if err != nil {
+		return nil, errors.New("ID khoa không hợp lệ")
+	}
+	faculty, _ := s.repo.GetFacultyByID(ctx, objID)
+	if faculty == nil {
+		return nil, errors.New("khoa không tồn tại")
+	}
+	return s.repo.GetLecturersByFacultyID(ctx, objID)
 }
 func (s *TrainingDepartmentService) GetAllLecturers(ctx context.Context) ([]models.Lecturer, error) {
 	return s.repo.GetAllLecturers(ctx)

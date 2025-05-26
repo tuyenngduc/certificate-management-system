@@ -1,8 +1,9 @@
 package request
 
 type UpdateClassRequest struct {
-	Code   string `json:"code" binding:"omitempty,min=2,max=20"`
-	Course string `json:"course" binding:"omitempty,min=4,max=9"`
+	Code      string `json:"code" binding:"omitempty,min=2,max=20"`
+	Course    string `json:"course" binding:"omitempty,min=4,max=9"`
+	FacultyID string `json:"faculty_id" binding:"omitempty"`
 }
 
 var ClassUpdateValidateMessages = map[string]map[string]string{

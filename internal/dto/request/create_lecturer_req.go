@@ -1,10 +1,11 @@
 package request
 
 type CreateLecturerRequest struct {
-	Code     string `json:"code" binding:"required,min=3,max=20"`
-	FullName string `json:"full_name" binding:"required,min=3,max=100"`
-	Email    string `json:"email" binding:"required,email"`
-	Title    string `json:"title" binding:"required,oneof=ThS TS PGS GS"`
+	Code      string `json:"code" binding:"required,min=3,max=20"`
+	FullName  string `json:"full_name" binding:"required,min=3,max=100"`
+	Email     string `json:"email" binding:"required,email"`
+	Title     string `json:"title" binding:"required,oneof=ThS TS PGS GS"`
+	FacultyID string `json:"faculty_id" binding:"required"` // ID khoa (ObjectID dạng string)
 }
 
 var LecturerValidateMessages = map[string]map[string]string{
@@ -25,5 +26,8 @@ var LecturerValidateMessages = map[string]map[string]string{
 	"Title": {
 		"required": "Chức danh là bắt buộc",
 		"oneof":    "Chức danh phải là một trong: ThS, TS, PGS, GS",
+	},
+	"FacultyID": {
+		"required": "ID khoa là bắt buộc",
 	},
 }
