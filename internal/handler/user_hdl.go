@@ -317,7 +317,40 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, users)
+
+	// Lấy map facultyID -> code, classID -> code
+	faculties, _ := h.svc.GetAllFaculties(c.Request.Context())
+	classes, _ := h.svc.GetAllClasses(c.Request.Context())
+	facultyMap := make(map[primitive.ObjectID]string)
+	for _, f := range faculties {
+		facultyMap[f.ID] = f.Code
+	}
+	classMap := make(map[primitive.ObjectID]string)
+	for _, cl := range classes {
+		classMap[cl.ID] = cl.Code
+	}
+
+	var result []response.UserResponse
+	for _, u := range users {
+		result = append(result, response.UserResponse{
+			ID:           u.ID.Hex(),
+			StudentID:    u.StudentID,
+			FullName:     u.FullName,
+			Email:        u.Email,
+			Ethnicity:    u.Ethnicity,
+			Gender:       u.Gender,
+			FacultyCode:  facultyMap[u.FacultyID],
+			ClassCode:    classMap[u.ClassID],
+			Course:       u.Course,
+			NationalID:   u.NationalID,
+			Address:      u.Address,
+			PlaceOfBirth: u.PlaceOfBirth,
+			DateOfBirth:  u.DateOfBirth.Format("02/01/2006"),
+			PhoneNumber:  u.PhoneNumber,
+		})
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *UserHandler) UpdateUser(c *gin.Context) {
