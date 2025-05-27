@@ -11,6 +11,8 @@ func SetupRouter(
 	trainingDepartmentHandler *handler.TrainingDepartmentHandler,
 	authHandler *handler.AuthHandler,
 	accountHandler *handler.AccountHandler,
+	subjectHandler *handler.SubjectHandler,
+
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -29,6 +31,7 @@ func SetupRouter(
 		RegisterUserRoutes(protected, userHandler)
 		RegisterTrainingDepartmentRoutes(protected, trainingDepartmentHandler)
 		RegisterAccountRoutes(protected, accountHandler)
+		RegisterSubjectRoutes(protected, subjectHandler)
 	}
 
 	return r

@@ -16,6 +16,14 @@ type TrainingDepartmentRepository struct {
 	LecturerCol *mongo.Collection
 }
 
+func (r *TrainingDepartmentRepository) GetFacultyByCode(ctx context.Context, code string) (*models.Faculty, error) {
+	var faculty models.Faculty
+	err := r.FacultyCol.FindOne(ctx, bson.M{"code": code}).Decode(&faculty)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &faculty, err
+}
 func NewTrainingDepartmentRepository(db *mongo.Database) *TrainingDepartmentRepository {
 	return &TrainingDepartmentRepository{
 		FacultyCol:  db.Collection("faculties"),
