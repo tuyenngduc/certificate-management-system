@@ -123,3 +123,38 @@ func (h *ScoreHandler) ImportScoresExcel(c *gin.Context) {
 func parseFloat(str string) (float64, error) {
 	return strconv.ParseFloat(str, 64)
 }
+
+func (h *ScoreHandler) GetScoresByStudent(c *gin.Context) {
+	studentID := c.Param("student_id")
+	scores, err := h.scoreService.GetScoresByStudentID(c.Request.Context(), studentID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"scores": scores})
+}
+
+func (h *ScoreHandler) GetScoresBySubject(c *gin.Context) {
+	subjectID := c.Param("subject_id")
+	scores, err := h.scoreService.GetScoresBySubjectID(c.Request.Context(), subjectID)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"scores": scores})
+}
+
+func (h *ScoreHandler) UpdateScore(c *gin.Context) {
+	id := c.Param("id")
+	var req request.UpdateScoreRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Dữ liệu không hợp lệ"})
+		return
+	}
+	err := h.scoreService.UpdateScore(c.Request.Context(), id, &req)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"message": "Cập nhật điểm thành công"})
+}

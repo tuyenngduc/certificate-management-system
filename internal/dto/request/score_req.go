@@ -18,3 +18,9 @@ type CreateScoreByExcelRequest struct {
 	Midterm     float64 `json:"midterm" binding:"required"`
 	Final       float64 `json:"final" binding:"required"`
 }
+
+type UpdateScoreRequest struct {
+	Attendance *float64 `json:"attendance,omitempty"`
+	Midterm    *float64 `json:"midterm,omitempty"`
+	Final      *float64 `json:"final,omitempty"`
+}

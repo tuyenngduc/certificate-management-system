@@ -3,18 +3,24 @@ package service
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/tuyenngduc/certificate-management-system/internal/dto/request"
+	"github.com/tuyenngduc/certificate-management-system/internal/dto/response"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type ScoreService interface {
 	CreateScore(ctx context.Context, req *request.CreateScoreRequest) error
 	CreateScoreByCode(ctx context.Context, req *request.CreateScoreByExcelRequest) error
+	GetScoresBySubjectID(ctx context.Context, subjectID string) ([]*response.ScoreWithSubjectAndStudentResponse, error)
+	UpdateScore(ctx context.Context, id string, req *request.UpdateScoreRequest) error
+	GetScoresByStudentID(ctx context.Context, studentID string) ([]*response.ScoreWithSubjectAndStudentResponse, error)
 }
 
 type scoreService struct {
@@ -37,21 +43,27 @@ func calculateTotalScore(processScore, final float64) float64 {
 	return processScore*0.3 + final*0.7
 }
 
+func roundToOneDecimalPlace(val float64) float64 {
+	return math.Round(val*10) / 10
+}
+
 func convertGPAChar(score float64) string {
 	switch {
 	case score >= 9.0:
 		return "A+"
-	case score >= 8.5 && score <= 8.9:
+	case score >= 8.5:
 		return "A"
-	case score >= 7.8 && score <= 8.4:
+	case score >= 7.8:
 		return "B+"
-	case score >= 6.3 && score <= 6.9:
+	case score >= 7.0:
+		return "B"
+	case score >= 6.3:
 		return "C+"
-	case score >= 5.5 && score <= 6.2:
+	case score >= 5.5:
 		return "C"
-	case score >= 4.8 && score <= 5.4:
+	case score >= 4.8:
 		return "D+"
-	case score >= 4.0 && score <= 4.7:
+	case score >= 4.0:
 		return "D"
 	default:
 		return "F"
@@ -96,8 +108,8 @@ func (s *scoreService) CreateScore(ctx context.Context, req *request.CreateScore
 		return errors.New("dữ liệu đã tồn tại")
 	}
 
-	processScore := calculateProcessScore(req.Attendance, req.Midterm)
-	totalScore := calculateTotalScore(processScore, req.Final)
+	processScore := roundToOneDecimalPlace(calculateProcessScore(req.Attendance, req.Midterm))
+	totalScore := roundToOneDecimalPlace(calculateTotalScore(processScore, req.Final))
 
 	score := &models.Score{
 		StudentID:    studentID,
@@ -162,4 +174,136 @@ func (s *scoreService) CreateScoreByCode(ctx context.Context, req *request.Creat
 	}
 
 	return s.repo.CreateScore(ctx, score)
+}
+
+func (s *scoreService) GetScoresByStudentID(ctx context.Context, studentID string) ([]*response.ScoreWithSubjectAndStudentResponse, error) {
+	objID, err := primitive.ObjectIDFromHex(studentID)
+	if err != nil {
+		return nil, errors.New("mã sinh viên không hợp lệ")
+	}
+
+	scores, err := s.repo.GetScoresByStudentID(ctx, objID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Lấy thông tin sinh viên 1 lần
+	user, err := s.userRepo.GetByID(ctx, objID)
+	if err != nil || user == nil {
+		return nil, errors.New("không tìm thấy sinh viên")
+	}
+
+	// Chuẩn bị response
+	var results []*response.ScoreWithSubjectAndStudentResponse
+	for _, score := range scores {
+		subject, err := s.subjectRepo.GetByID(ctx, score.SubjectID)
+		if err != nil || subject == nil {
+			continue // hoặc log lỗi nếu cần
+		}
+
+		results = append(results, &response.ScoreWithSubjectAndStudentResponse{
+			ID:           score.ID,
+			StudentName:  user.FullName,
+			SubjectName:  subject.Name,
+			Semester:     score.Semester,
+			Attendance:   score.Attendance,
+			Midterm:      score.Midterm,
+			Final:        score.Final,
+			ProcessScore: roundToOneDecimalPlace(score.ProcessScore),
+			Total:        roundToOneDecimalPlace(score.Total),
+			GPAChar:      score.GPAChar,
+		})
+	}
+
+	return results, nil
+}
+
+func (s *scoreService) GetScoresBySubjectID(ctx context.Context, subjectID string) ([]*response.ScoreWithSubjectAndStudentResponse, error) {
+	objID, err := primitive.ObjectIDFromHex(subjectID)
+	if err != nil {
+		return nil, errors.New("mã môn học không hợp lệ")
+	}
+
+	scores, err := s.repo.GetScoresBySubjectID(ctx, objID)
+	if err != nil {
+		return nil, err
+	}
+
+	subject, err := s.subjectRepo.GetByID(ctx, objID)
+	if err != nil || subject == nil {
+		return nil, errors.New("không tìm thấy môn học")
+	}
+
+	var result []*response.ScoreWithSubjectAndStudentResponse
+	for _, score := range scores {
+
+		user, err := s.userRepo.GetByID(ctx, score.StudentID)
+		if err != nil || user == nil {
+			continue
+		}
+
+		result = append(result, &response.ScoreWithSubjectAndStudentResponse{
+			ID:           score.ID,
+			StudentName:  user.FullName,
+			SubjectName:  subject.Name,
+			Semester:     score.Semester,
+			Attendance:   score.Attendance,
+			Midterm:      score.Midterm,
+			Final:        score.Final,
+			ProcessScore: roundToOneDecimalPlace(score.ProcessScore),
+			Total:        roundToOneDecimalPlace(score.Total),
+			GPAChar:      score.GPAChar,
+		})
+	}
+
+	return result, nil
+}
+
+func (s *scoreService) UpdateScore(ctx context.Context, id string, req *request.UpdateScoreRequest) error {
+	scoreID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return errors.New("id điểm không hợp lệ")
+	}
+
+	// Lấy bản ghi điểm hiện tại
+	score, err := s.repo.GetScoreByID(ctx, scoreID)
+	if err != nil {
+		return errors.New("lỗi hệ thống")
+	}
+	if score == nil {
+		return errors.New("không tìm thấy điểm")
+	}
+
+	update := bson.M{}
+
+	if req.Attendance != nil {
+		update["attendance"] = *req.Attendance
+	}
+	if req.Midterm != nil {
+		update["midterm"] = *req.Midterm
+	}
+	if req.Final != nil {
+		update["final"] = *req.Final
+	}
+
+	// Tính lại điểm quá trình, tổng kết, GPAChar nếu có thay đổi
+	attendance := score.Attendance
+	midterm := score.Midterm
+	final := score.Final
+	if req.Attendance != nil {
+		attendance = *req.Attendance
+	}
+	if req.Midterm != nil {
+		midterm = *req.Midterm
+	}
+	if req.Final != nil {
+		final = *req.Final
+	}
+	processScore := roundToOneDecimalPlace(calculateProcessScore(attendance, midterm))
+	totalScore := roundToOneDecimalPlace(calculateTotalScore(processScore, final))
+	update["process_score"] = processScore
+	update["total"] = totalScore
+	update["gpa_char"] = convertGPAChar(totalScore)
+
+	return s.repo.UpdateScore(ctx, scoreID, update)
 }
