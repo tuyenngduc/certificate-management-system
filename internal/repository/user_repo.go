@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -23,6 +25,14 @@ func NewUserRepository(db *mongo.Database) *UserRepository {
 func (r *UserRepository) Insert(ctx context.Context, user *models.User) error {
 	_, err := r.collection.InsertOne(ctx, user)
 	return err
+}
+func (r *UserRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
+	var user models.User
+	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &user, err
 }
 
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
@@ -148,4 +158,20 @@ func (r *UserRepository) Delete(ctx context.Context, id primitive.ObjectID) (boo
 		return false, err
 	}
 	return res.DeletedCount > 0, nil
+}
+
+func (r *UserRepository) GetByCode(ctx context.Context, code string) (*models.User, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{"studentId": code}
+	var user models.User
+	err := r.collection.FindOne(ctx, filter).Decode(&user)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
 }

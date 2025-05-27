@@ -12,19 +12,17 @@ func SetupRouter(
 	authHandler *handler.AuthHandler,
 	accountHandler *handler.AccountHandler,
 	subjectHandler *handler.SubjectHandler,
-
+	scoreHandler *handler.ScoreHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
 	api := r.Group("/api/v1")
 
-	// Public routes (không cần middleware)
 	public := api.Group("/")
 	{
 		RegisterAuthRoutes(public, authHandler)
 	}
 
-	// Protected routes (cần middleware xác thực)
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware())
 	{
@@ -32,6 +30,7 @@ func SetupRouter(
 		RegisterTrainingDepartmentRoutes(protected, trainingDepartmentHandler)
 		RegisterAccountRoutes(protected, accountHandler)
 		RegisterSubjectRoutes(protected, subjectHandler)
+		RegisterScoreRoutes(protected, scoreHandler)
 	}
 
 	return r

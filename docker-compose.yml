@@ -16,3 +16,7 @@ services:
 volumes:
   mongo-data:
 
+//docker exec -it vbcc_mongodb mongosh -u admin -p admin123
+//use vbcc_data
+//db.users.find().limit(5).pretty()
+

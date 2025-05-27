@@ -23,6 +23,7 @@ func main() {
 	}
 	db := database.DB
 	seedAdminAccount(db)
+
 	emailSender := utils.NewSMTPSender(
 		os.Getenv("EMAIL_FROM"),
 		os.Getenv("EMAIL_PASSWORD"),
@@ -36,6 +37,7 @@ func main() {
 	authRepo := repository.NewAuthRepository(db)
 	accountRepo := repository.NewAccountRepository(db)
 	subjectRepo := repository.NewSubjectRepository(db)
+	scoreRepo := repository.NewScoreRepository(db)
 
 	_ = userRepo.EnsureIndexes(context.Background())
 
@@ -45,14 +47,15 @@ func main() {
 	trainingDepartmentSvc := service.NewTrainingDepartmentService(trainingDepartmentRepo)
 	authSvc := service.NewAuthService(authRepo, userRepo, emailSender)
 	accountSvc := service.NewAccountService(accountRepo)
+	scoreSvc := service.NewScoreService(scoreRepo, userRepo, subjectRepo)
 
 	// Khởi tạo handler
 	subjectHandler := handler.NewSubjectHandler(subjectSvc, trainingDepartmentSvc)
-
 	userHandler := handler.NewUserHandler(userSvc)
 	trainingDepartmentHandler := handler.NewTrainingDepartmentHandler(trainingDepartmentSvc)
 	authHandler := handler.NewAuthHandler(authSvc)
 	accountHandler := handler.NewAccountHandler(accountSvc)
+	scoreHandler := handler.NewScoreHandler(scoreSvc)
 
 	// Khởi tạo router
 	r := routes.SetupRouter(
@@ -61,7 +64,9 @@ func main() {
 		authHandler,
 		accountHandler,
 		subjectHandler,
+		scoreHandler,
 	)
+
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Lỗi khi khởi động server: %v", err)
 	}
