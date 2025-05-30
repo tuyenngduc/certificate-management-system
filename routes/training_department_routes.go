@@ -20,6 +20,7 @@ func RegisterTrainingDepartmentRoutes(rg *gin.RouterGroup, h *handler.TrainingDe
 	rg.GET("/classes/:id", h.GetClassByID)
 	rg.PUT("/classes/:id", h.UpdateClass)
 	rg.DELETE("/classes/:id", h.DeleteClass)
+	rg.GET("/classes/search", h.SearchClasses)
 
 	// Lecturer
 	rg.POST("/lecturers", h.CreateLecturer)
@@ -28,4 +29,5 @@ func RegisterTrainingDepartmentRoutes(rg *gin.RouterGroup, h *handler.TrainingDe
 	rg.PUT("/lecturers/:id", h.UpdateLecturer)
 	rg.DELETE("/lecturers/:id", h.DeleteLecturer)
 	rg.GET("/lecturers/faculty/:faculty_id", h.GetLecturersByFaculty)
+	rg.GET("/lecturers/search", h.SearchLecturers)
 }

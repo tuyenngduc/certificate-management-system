@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -20,6 +21,8 @@ type ScoreService interface {
 	CreateScoreByCode(ctx context.Context, req *request.CreateScoreByExcelRequest) error
 	GetScoresBySubjectID(ctx context.Context, subjectID string) ([]*response.ScoreWithSubjectAndStudentResponse, error)
 	UpdateScore(ctx context.Context, id string, req *request.UpdateScoreRequest) error
+	ImportScoresBySubjectExcel(ctx context.Context, subjectCode string, reqs []request.ImportScoresBySubjectExcelRequest) ([]string, error)
+	CalculateCGPA(ctx context.Context, studentID string) (*response.CGPAResponse, error)
 	GetScoresByStudentID(ctx context.Context, studentID string) ([]*response.ScoreWithSubjectAndStudentResponse, error)
 }
 
@@ -306,4 +309,117 @@ func (s *scoreService) UpdateScore(ctx context.Context, id string, req *request.
 	update["gpa_char"] = convertGPAChar(totalScore)
 
 	return s.repo.UpdateScore(ctx, scoreID, update)
+}
+
+func (s *scoreService) ImportScoresBySubjectExcel(ctx context.Context, subjectID string, reqs []request.ImportScoresBySubjectExcelRequest) ([]string, error) {
+	var results []string
+
+	subjectObjID, err := primitive.ObjectIDFromHex(subjectID)
+	if err != nil {
+		return nil, errors.New("mã môn học không hợp lệ")
+	}
+
+	subject, err := s.subjectRepo.GetByID(ctx, subjectObjID)
+	if err != nil {
+		return nil, errors.New("lỗi hệ thống khi lấy môn học")
+	}
+	if subject == nil {
+		return nil, errors.New("không tìm thấy môn học")
+	}
+
+	for i, req := range reqs {
+		// Tìm sinh viên theo code
+		user, err := s.userRepo.GetByCode(ctx, req.StudentID)
+		if err != nil {
+			results = append(results, "Dòng "+itoa(i+2)+": lỗi hệ thống khi lấy sinh viên")
+			continue
+		}
+		if user == nil {
+			results = append(results, "Dòng "+itoa(i+2)+": sinh viên không tồn tại")
+			continue
+		}
+
+		// Kiểm tra điểm đã tồn tại chưa
+		exists, err := s.repo.IsScoreExists(ctx, user.ID.Hex(), subject.ID.Hex(), req.Semester)
+		if err != nil {
+			results = append(results, "Dòng "+itoa(i+2)+": lỗi kiểm tra trùng điểm")
+			continue
+		}
+		if exists {
+			results = append(results, "Dòng "+itoa(i+2)+": điểm đã tồn tại")
+			continue
+		}
+
+		processScore := calculateProcessScore(req.Attendance, req.Midterm)
+		totalScore := calculateTotalScore(processScore, req.Final)
+
+		score := &models.Score{
+			StudentID:    user.ID,
+			SubjectID:    subject.ID,
+			Semester:     req.Semester,
+			Attendance:   req.Attendance,
+			Midterm:      req.Midterm,
+			Final:        req.Final,
+			ProcessScore: processScore,
+			Total:        totalScore,
+			GPAChar:      convertGPAChar(totalScore),
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+
+		err = s.repo.CreateScore(ctx, score)
+		if err != nil {
+			results = append(results, "Dòng "+itoa(i+2)+": lỗi lưu điểm")
+		} else {
+			results = append(results, "Dòng "+itoa(i+2)+": thành công")
+		}
+	}
+
+	return results, nil
+}
+
+func itoa(i int) string {
+	return fmt.Sprintf("%d", i)
+}
+
+func (s *scoreService) CalculateCGPA(ctx context.Context, studentID string) (*response.CGPAResponse, error) {
+	objID, err := primitive.ObjectIDFromHex(studentID)
+	if err != nil {
+		return nil, errors.New("mã sinh viên không hợp lệ")
+	}
+
+	// Lấy tất cả điểm của sinh viên
+	scores, err := s.repo.GetScoresByStudentID(ctx, objID)
+	if err != nil {
+		return nil, err
+	}
+	if len(scores) == 0 {
+		return &response.CGPAResponse{CGPA: 0, TotalSubjects: 0, TotalCredits: 0}, nil
+	}
+
+	var (
+		totalWeighted float64
+		totalCredits  int
+	)
+
+	for _, score := range scores {
+		subject, err := s.subjectRepo.GetByID(ctx, score.SubjectID)
+		if err != nil || subject == nil {
+			continue // bỏ qua môn không tìm thấy
+		}
+		credit := subject.Credit // giả sử subject có trường Credit int
+		totalWeighted += score.Total * float64(credit)
+		totalCredits += credit
+	}
+
+	cgpa := 0.0
+	if totalCredits > 0 {
+		cgpa = roundToOneDecimalPlace(totalWeighted / float64(totalCredits))
+	}
+
+	return &response.CGPAResponse{
+		CGPA:          cgpa,
+		TotalSubjects: len(scores),
+		TotalCredits:  totalCredits,
+	}, nil
 }

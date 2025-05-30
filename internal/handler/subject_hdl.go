@@ -31,20 +31,42 @@ func (h *SubjectHandler) CreateSubject(c *gin.Context) {
 	err := h.subjectService.CreateSubject(c.Request.Context(), &req)
 	if err != nil {
 		errMsg := err.Error()
-		switch {
-		case errMsg == "khoa không tồn tại":
+		switch errMsg {
+		case "mã môn học đã tồn tại":
+			c.JSON(http.StatusConflict, gin.H{"error": errMsg})
+		case "khoa không tồn tại":
 			c.JSON(http.StatusNotFound, gin.H{"error": errMsg})
-		case errMsg == "id khoa không hợp lệ":
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
-		case errMsg == "khoa không tồn tại" || errMsg == "id khoa không hợp lệ":
+		case "id khoa không hợp lệ":
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "lỗi hệ thống"}) // 500
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "lỗi hệ thống"})
 		}
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "đã tạo môn học thành công"})
+}
+
+func (h *SubjectHandler) SearchSubjects(c *gin.Context) {
+	id := c.Query("id")
+	code := c.Query("code")
+	name := c.Query("name")
+	creditStr := c.Query("credit")
+
+	var credit *int
+	if creditStr != "" {
+		val, err := strconv.Atoi(creditStr)
+		if err == nil {
+			credit = &val
+		}
+	}
+
+	subjects, err := h.subjectService.Search(c.Request.Context(), id, code, name, credit)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, subjects)
 }
 
 // PUT /subjects/:id

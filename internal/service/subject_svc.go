@@ -17,6 +17,7 @@ type SubjectService interface {
 	DeleteSubject(ctx context.Context, id string) error
 	GetSubjectByID(ctx context.Context, id string) (*models.Subject, error)
 	ListSubjects(ctx context.Context) ([]*models.Subject, error)
+	Search(ctx context.Context, id, code, name string, credit *int) ([]*models.Subject, error)
 	CreateSubjectByFacultyCode(ctx context.Context, req *request.CreateSubjectByExcelRequest) error
 }
 
@@ -33,7 +34,6 @@ func NewSubjectService(subjectRepo repository.SubjectRepository, trainingRepo *r
 }
 
 func (s *subjectService) CreateSubject(ctx context.Context, req *request.CreateSubjectRequest) error {
-	// Kiểm tra mã môn học trùng
 	existing, err := s.subjectRepo.GetByCode(ctx, req.Code)
 	if err != nil {
 		return err
@@ -42,19 +42,16 @@ func (s *subjectService) CreateSubject(ctx context.Context, req *request.CreateS
 		return errors.New("mã môn học đã tồn tại")
 	}
 
-	// Kiểm tra FacultyID hợp lệ
 	facultyID, err := primitive.ObjectIDFromHex(req.FacultyID)
 	if err != nil {
 		return errors.New("id khoa không hợp lệ")
 	}
 
-	// 🟡 Kiểm tra khoa có tồn tại không
 	faculty, err := s.trainingRepo.GetFacultyByID(ctx, facultyID)
 	if err != nil || faculty == nil {
 		return errors.New("khoa không tồn tại")
 	}
 
-	// Tạo subject
 	subject := &models.Subject{
 		Code:        req.Code,
 		Name:        req.Name,
@@ -71,7 +68,6 @@ func (s *subjectService) UpdateSubject(ctx context.Context, id string, req *requ
 		return errors.New("id môn học không hợp lệ")
 	}
 
-	// Kiểm tra subject có tồn tại không
 	existingSubject, err := s.subjectRepo.GetByID(ctx, objectID)
 	if err != nil {
 		return errors.New("lỗi hệ thống")
@@ -82,13 +78,12 @@ func (s *subjectService) UpdateSubject(ctx context.Context, id string, req *requ
 
 	update := bson.M{}
 
-	// Kiểm tra code nếu truyền lên
 	if req.Code != nil {
 		other, err := s.subjectRepo.GetByCode(ctx, *req.Code)
 		if err != nil {
 			return errors.New("lỗi hệ thống")
 		}
-		// Nếu đã có subject khác với code này thì báo lỗi
+
 		if other != nil && other.ID.Hex() != objectID.Hex() {
 			return errors.New("mã môn học đã tồn tại")
 		}
@@ -141,9 +136,10 @@ func (s *subjectService) GetSubjectByID(ctx context.Context, id string) (*models
 func (s *subjectService) ListSubjects(ctx context.Context) ([]*models.Subject, error) {
 	return s.subjectRepo.List(ctx)
 }
-
+func (s *subjectService) Search(ctx context.Context, id, code, name string, credit *int) ([]*models.Subject, error) {
+	return s.subjectRepo.Search(ctx, id, code, name, credit)
+}
 func (s *subjectService) CreateSubjectByFacultyCode(ctx context.Context, req *request.CreateSubjectByExcelRequest) error {
-	// Kiểm tra mã môn học trùng
 	existing, err := s.subjectRepo.GetByCode(ctx, req.Code)
 	if err != nil {
 		return err
@@ -151,8 +147,6 @@ func (s *subjectService) CreateSubjectByFacultyCode(ctx context.Context, req *re
 	if existing != nil {
 		return errors.New("mã môn học đã tồn tại")
 	}
-
-	// Tìm faculty theo code
 	faculty, err := s.trainingRepo.GetFacultyByCode(ctx, req.FacultyCode)
 	if err != nil || faculty == nil {
 		return errors.New("khoa không tồn tại")

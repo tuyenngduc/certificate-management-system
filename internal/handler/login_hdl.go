@@ -15,6 +15,8 @@ type LoginRequest struct {
 
 type LoginResponse struct {
 	Token string `json:"token"`
+	ID    string `json:"id"`
+	Role  string `json:"role"`
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -36,5 +38,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, LoginResponse{Token: token})
+	resp := gin.H{
+		"token": token,
+		"role":  account.Role,
+	}
+	if account.Role == "student" {
+		resp["id"] = account.ID.Hex()
+	}
+
+	c.JSON(http.StatusOK, resp)
 }

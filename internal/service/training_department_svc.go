@@ -178,6 +178,10 @@ func (s *TrainingDepartmentService) CreateLecturer(ctx context.Context, req *req
 	if exist != nil {
 		return errors.New("mã giảng viên đã tồn tại")
 	}
+	existEmail, _ := s.repo.FindLecturerByEmail(ctx, req.Email)
+	if existEmail != nil {
+		return errors.New("email giảng viên đã tồn tại")
+	}
 
 	facultyID, err := primitive.ObjectIDFromHex(req.FacultyID)
 	if err != nil {
@@ -211,6 +215,9 @@ func (s *TrainingDepartmentService) GetLecturersByFacultyID(ctx context.Context,
 func (s *TrainingDepartmentService) GetAllLecturers(ctx context.Context) ([]models.Lecturer, error) {
 	return s.repo.GetAllLecturers(ctx)
 }
+func (s *TrainingDepartmentService) SearchLecturers(ctx context.Context, id, code, fullName string) ([]*models.Lecturer, error) {
+	return s.repo.SearchLecturers(ctx, id, code, fullName)
+}
 func (s *TrainingDepartmentService) GetLecturerByID(ctx context.Context, id primitive.ObjectID) (*models.Lecturer, error) {
 	return s.repo.GetLecturerByID(ctx, id)
 }
@@ -220,8 +227,6 @@ func (s *TrainingDepartmentService) UpdateLecturer(ctx context.Context, id strin
 	if err != nil {
 		return errors.New("ID không hợp lệ")
 	}
-
-	// Kiểm tra lecturer có tồn tại không
 	lecturer, _ := s.repo.GetLecturerByID(ctx, objID)
 	if lecturer == nil {
 		return errors.New("không tìm thấy giảng viên")
@@ -240,6 +245,10 @@ func (s *TrainingDepartmentService) UpdateLecturer(ctx context.Context, id strin
 		update["fullName"] = req.FullName
 	}
 	if req.Email != "" {
+		existEmail, _ := s.repo.FindLecturerByEmail(ctx, req.Email)
+		if existEmail != nil && existEmail.ID != objID {
+			return errors.New("email giảng viên đã tồn tại")
+		}
 		update["email"] = req.Email
 	}
 	if req.Title != "" {
@@ -250,6 +259,17 @@ func (s *TrainingDepartmentService) UpdateLecturer(ctx context.Context, id strin
 	}
 
 	return s.repo.UpdateLecturer(ctx, objID, update)
+}
+
+func (s *UserService) GetUsersByClassID(ctx context.Context, classID string) ([]*models.User, error) {
+	objID, err := primitive.ObjectIDFromHex(classID)
+	if err != nil {
+		return nil, errors.New("ID lớp không hợp lệ")
+	}
+	return s.repo.GetUsersByClassID(ctx, objID)
+}
+func (s *TrainingDepartmentService) SearchClasses(ctx context.Context, id, code, course string, page, pageSize int) ([]*models.Class, int, error) {
+	return s.repo.SearchClasses(ctx, id, code, course, page, pageSize)
 }
 func (s *TrainingDepartmentService) DeleteLecturer(ctx context.Context, id primitive.ObjectID) error {
 	deleted, err := s.repo.DeleteLecturer(ctx, id)

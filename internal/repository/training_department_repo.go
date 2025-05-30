@@ -155,6 +155,44 @@ func (r *TrainingDepartmentRepository) DeleteClass(ctx context.Context, id primi
 	return res.DeletedCount > 0, nil
 }
 
+func (r *TrainingDepartmentRepository) SearchClasses(ctx context.Context, id, code, course string, page, pageSize int) ([]*models.Class, int, error) {
+	filter := bson.M{}
+	if id != "" {
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err == nil {
+			filter["_id"] = objID
+		}
+	}
+	if code != "" {
+		filter["code"] = bson.M{"$regex": code, "$options": "i"} // tìm gần đúng, không phân biệt hoa thường
+	}
+	if course != "" {
+		filter["course"] = bson.M{"$regex": course, "$options": "i"}
+	}
+
+	total, _ := r.ClassCol.CountDocuments(ctx, filter)
+
+	opts := options.Find().
+		SetSkip(int64((page - 1) * pageSize)).
+		SetLimit(int64(pageSize))
+
+	cursor, err := r.ClassCol.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var classes []*models.Class
+	for cursor.Next(ctx) {
+		var class models.Class
+		if err := cursor.Decode(&class); err != nil {
+			return nil, 0, err
+		}
+		classes = append(classes, &class)
+	}
+	return classes, int(total), nil
+}
+
 // Lecturer CRUD
 func (r *TrainingDepartmentRepository) CreateLecturer(ctx context.Context, lecturer *models.Lecturer) error {
 	_, err := r.LecturerCol.InsertOne(ctx, lecturer)
@@ -174,6 +212,47 @@ func (r *TrainingDepartmentRepository) GetAllLecturers(ctx context.Context) ([]m
 		}
 	}
 	return lecturers, nil
+}
+
+func (r *TrainingDepartmentRepository) SearchLecturers(ctx context.Context, id, code, fullName string) ([]*models.Lecturer, error) {
+	filter := bson.M{}
+	if id != "" {
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err == nil {
+			filter["_id"] = objID
+		}
+	}
+	if code != "" {
+		filter["code"] = bson.M{"$regex": code, "$options": "i"}
+	}
+	if fullName != "" {
+		filter["fullName"] = bson.M{"$regex": fullName, "$options": "i"}
+	}
+
+	cursor, err := r.LecturerCol.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var lecturers []*models.Lecturer
+	for cursor.Next(ctx) {
+		var lec models.Lecturer
+		if err := cursor.Decode(&lec); err != nil {
+			return nil, err
+		}
+		lecturers = append(lecturers, &lec)
+	}
+	return lecturers, nil
+}
+
+func (r *TrainingDepartmentRepository) FindLecturerByEmail(ctx context.Context, email string) (*models.Lecturer, error) {
+	var lec models.Lecturer
+	err := r.LecturerCol.FindOne(ctx, bson.M{"email": email}).Decode(&lec)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &lec, err
 }
 func (r *TrainingDepartmentRepository) GetLecturersByFacultyID(ctx context.Context, facultyID primitive.ObjectID) ([]models.Lecturer, error) {
 	var lecturers []models.Lecturer

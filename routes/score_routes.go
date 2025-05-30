@@ -13,10 +13,8 @@ func RegisterScoreRoutes(rg *gin.RouterGroup, handler *handler.ScoreHandler) {
 		score.GET("/student/:student_id", handler.GetScoresByStudent)
 		score.GET("/subject/:subject_id", handler.GetScoresBySubject)
 		score.PUT("/:id", handler.UpdateScore)
-		// Có thể thêm các route khác như:
-		// score.GET("/", handler.GetScores)
-		// score.GET("/:id", handler.GetScoreByID)
-		// score.PUT("/:id", handler.UpdateScore)
-		// score.DELETE("/:id", handler.DeleteScore)
+		score.POST("/import-excel/subject/:subject_id", handler.ImportScoresBySubjectExcel)
+		score.GET("/student/cgpa/:student_id", handler.GetCGPA)
+
 	}
 }

@@ -111,11 +111,16 @@ func (r *UserRepository) FindAll(ctx context.Context) ([]*models.User, error) {
 	}
 	return users, nil
 }
-
-func (r *UserRepository) Search(ctx context.Context, fullName, email, nationalID, phone, studentID string) ([]*models.User, error) {
+func (r *UserRepository) Search(ctx context.Context, id, fullName, email, nationalID, phone, studentID string, page, pageSize int) ([]*models.User, int64, error) {
 	filter := bson.M{}
+	if id != "" {
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err == nil {
+			filter["_id"] = objID
+		}
+	}
 	if fullName != "" {
-		filter["fullName"] = bson.M{"$regex": fullName, "$options": "i"} // tìm gần đúng, không phân biệt hoa thường
+		filter["fullName"] = bson.M{"$regex": fullName, "$options": "i"}
 	}
 	if email != "" {
 		filter["email"] = email
@@ -130,6 +135,29 @@ func (r *UserRepository) Search(ctx context.Context, fullName, email, nationalID
 		filter["studentId"] = studentID
 	}
 
+	total, _ := r.collection.CountDocuments(ctx, filter)
+	opts := options.Find().
+		SetSkip(int64((page - 1) * pageSize)).
+		SetLimit(int64(pageSize))
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var users []*models.User
+	for cursor.Next(ctx) {
+		var user models.User
+		if err := cursor.Decode(&user); err != nil {
+			return nil, 0, err
+		}
+		users = append(users, &user)
+	}
+	return users, total, nil
+}
+func (r *UserRepository) GetUsersByClassID(ctx context.Context, classID primitive.ObjectID) ([]*models.User, error) {
+	filter := bson.M{"classId": classID}
 	cursor, err := r.collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -146,7 +174,6 @@ func (r *UserRepository) Search(ctx context.Context, fullName, email, nationalID
 	}
 	return users, nil
 }
-
 func (r *UserRepository) Update(ctx context.Context, id primitive.ObjectID, update bson.M) error {
 	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
 	return err

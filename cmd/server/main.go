@@ -5,7 +5,10 @@ import (
 	"log"
 	"os"
 
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
+	"github.com/tuyenngduc/certificate-management-system/internal/dto/request"
 	"github.com/tuyenngduc/certificate-management-system/internal/handler"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
@@ -38,7 +41,7 @@ func main() {
 	accountRepo := repository.NewAccountRepository(db)
 	subjectRepo := repository.NewSubjectRepository(db)
 	scoreRepo := repository.NewScoreRepository(db)
-
+	certRepo := repository.NewCertificateRepository(db)
 	_ = userRepo.EnsureIndexes(context.Background())
 
 	// Khởi tạo service
@@ -48,6 +51,7 @@ func main() {
 	authSvc := service.NewAuthService(authRepo, userRepo, emailSender)
 	accountSvc := service.NewAccountService(accountRepo)
 	scoreSvc := service.NewScoreService(scoreRepo, userRepo, subjectRepo)
+	certService := service.NewCertificateService(certRepo)
 
 	// Khởi tạo handler
 	subjectHandler := handler.NewSubjectHandler(subjectSvc, trainingDepartmentSvc)
@@ -56,6 +60,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authSvc)
 	accountHandler := handler.NewAccountHandler(accountSvc)
 	scoreHandler := handler.NewScoreHandler(scoreSvc)
+	certHandler := handler.NewCertificateHandler(certService)
 
 	// Khởi tạo router
 	r := routes.SetupRouter(
@@ -65,9 +70,16 @@ func main() {
 		accountHandler,
 		subjectHandler,
 		scoreHandler,
+		certHandler,
 	)
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Lỗi khi khởi động server: %v", err)
+	}
+}
+
+func init() {
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		request.RegisterClassValidators(v)
 	}
 }

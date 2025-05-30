@@ -24,3 +24,12 @@ type UpdateScoreRequest struct {
 	Midterm    *float64 `json:"midterm,omitempty"`
 	Final      *float64 `json:"final,omitempty"`
 }
+
+type ImportScoresBySubjectExcelRequest struct {
+	StudentID   string  `json:"student_id" binding:"required"`
+	StudentName string  `json:"student_name"`
+	Semester    string  `json:"semester" binding:"required"`
+	Attendance  float64 `json:"attendance" binding:"required"`
+	Midterm     float64 `json:"midterm" binding:"required"`
+	Final       float64 `json:"final" binding:"required"`
+}

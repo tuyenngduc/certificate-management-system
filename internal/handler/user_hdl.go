@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -306,13 +307,17 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 }
 
 func (h *UserHandler) SearchUsers(c *gin.Context) {
+	id := c.Query("id")
 	fullName := c.Query("full_name")
 	email := c.Query("email")
 	nationalID := c.Query("national_id")
 	phone := c.Query("phone_number")
 	studentID := c.Query("student_id")
 
-	users, err := h.svc.SearchUsers(c.Request.Context(), fullName, email, nationalID, phone, studentID)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+
+	users, total, err := h.svc.SearchUsers(c.Request.Context(), id, fullName, email, nationalID, phone, studentID, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -350,7 +355,13 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, gin.H{
+		"data":       result,
+		"total":      total,
+		"page":       page,
+		"page_size":  pageSize,
+		"total_page": (total + int64(pageSize) - 1) / int64(pageSize),
+	})
 }
 
 func (h *UserHandler) UpdateUser(c *gin.Context) {

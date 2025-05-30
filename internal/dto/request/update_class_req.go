@@ -2,7 +2,7 @@ package request
 
 type UpdateClassRequest struct {
 	Code      string `json:"code" binding:"omitempty,min=2,max=20"`
-	Course    string `json:"course" binding:"omitempty,min=4,max=9"`
+	Course    string `json:"course" binding:"omitempty,courseyear"`
 	FacultyID string `json:"faculty_id" binding:"omitempty"`
 }
 
@@ -12,7 +12,6 @@ var ClassUpdateValidateMessages = map[string]map[string]string{
 		"max": "Mã lớp không được vượt quá 20 ký tự",
 	},
 	"Course": {
-		"min": "Khoá học phải có ít nhất 4 ký tự",
-		"max": "Khoá học không được vượt quá 9 ký tự",
+		"courseyear": "Khoá học phải có định dạng năm-năm, ví dụ: 2021-2025",
 	},
 }

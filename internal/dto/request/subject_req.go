@@ -23,3 +23,22 @@ type CreateSubjectByExcelRequest struct {
 	FacultyCode string `json:"faculty_code" binding:"required"`
 	Description string `json:"description"`
 }
+
+var SubjectValidateMessages = map[string]map[string]string{
+	"Code": {
+		"required": "Mã môn học là bắt buộc",
+	},
+	"Name": {
+		"required": "Tên môn học là bắt buộc",
+	},
+	"Credit": {
+		"required": "Số tín chỉ là bắt buộc",
+		"min":      "Số tín chỉ phải lớn hơn 0",
+	},
+	"FacultyID": {
+		"required": "ID khoa là bắt buộc",
+	},
+	"FacultyCode": {
+		"required": "Mã khoa là bắt buộc",
+	},
+}

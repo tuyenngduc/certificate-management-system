@@ -158,3 +158,83 @@ func (h *ScoreHandler) UpdateScore(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"message": "Cập nhật điểm thành công"})
 }
+
+func (h *ScoreHandler) ImportScoresBySubjectExcel(c *gin.Context) {
+	subjectCode := c.Param("subject_id")
+	if subjectCode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu mã môn học"})
+		return
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Không tìm thấy file"})
+		return
+	}
+
+	f, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể mở file"})
+		return
+	}
+	defer f.Close()
+
+	xlFile, err := excelize.OpenReader(f)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File không phải Excel hợp lệ"})
+		return
+	}
+
+	rows, err := xlFile.GetRows("Sheet1")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Không thể đọc sheet"})
+		return
+	}
+
+	if len(rows) < 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File Excel không có dữ liệu"})
+		return
+	}
+
+	var reqs []request.ImportScoresBySubjectExcelRequest
+	for _, row := range rows[1:] {
+		if len(row) < 6 {
+			continue
+		}
+		attendance, err1 := strconv.ParseFloat(row[2], 64)
+		midterm, err2 := strconv.ParseFloat(row[3], 64)
+		final, err3 := strconv.ParseFloat(row[4], 64)
+		if err1 != nil || err2 != nil || err3 != nil {
+			continue
+		}
+		reqs = append(reqs, request.ImportScoresBySubjectExcelRequest{
+			StudentID:   row[0],
+			StudentName: row[1],
+			Attendance:  attendance,
+			Midterm:     midterm,
+			Final:       final,
+			Semester:    row[5],
+		})
+	}
+
+	results, err := h.scoreService.ImportScoresBySubjectExcel(c.Request.Context(), subjectCode, reqs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Import hoàn tất",
+		"results": results,
+	})
+}
+
+func (h *ScoreHandler) GetCGPA(c *gin.Context) {
+	studentID := c.Param("student_id")
+	resp, err := h.scoreService.CalculateCGPA(c.Request.Context(), studentID)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, resp)
+}

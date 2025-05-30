@@ -12,4 +12,5 @@ func RegisterSubjectRoutes(r *gin.RouterGroup, subjectHandler *handler.SubjectHa
 	r.GET("/subjects/:id", subjectHandler.GetSubject)
 	r.GET("/subjects", subjectHandler.ListSubjects)
 	r.POST("/subjects/import", subjectHandler.ImportSubjects)
+	r.GET("/subjects/search", subjectHandler.SearchSubjects)
 }

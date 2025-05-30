@@ -18,6 +18,7 @@ type SubjectRepository interface {
 	Update(ctx context.Context, id primitive.ObjectID, update bson.M) error
 	Delete(ctx context.Context, id primitive.ObjectID) error
 	List(ctx context.Context) ([]*models.Subject, error)
+	Search(ctx context.Context, id, code, name string, credit *int) ([]*models.Subject, error)
 }
 
 type subjectRepository struct {
@@ -71,7 +72,40 @@ func (r *subjectRepository) Delete(ctx context.Context, id primitive.ObjectID) e
 	}
 	return nil
 }
+func (r *subjectRepository) Search(ctx context.Context, id, code, name string, credit *int) ([]*models.Subject, error) {
+	filter := bson.M{}
+	if id != "" {
+		objID, err := primitive.ObjectIDFromHex(id)
+		if err == nil {
+			filter["_id"] = objID
+		}
+	}
+	if code != "" {
+		filter["code"] = bson.M{"$regex": code, "$options": "i"}
+	}
+	if name != "" {
+		filter["name"] = bson.M{"$regex": name, "$options": "i"}
+	}
+	if credit != nil {
+		filter["credit"] = *credit
+	}
 
+	cursor, err := r.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var subjects []*models.Subject
+	for cursor.Next(ctx) {
+		var subject models.Subject
+		if err := cursor.Decode(&subject); err != nil {
+			return nil, err
+		}
+		subjects = append(subjects, &subject)
+	}
+	return subjects, nil
+}
 func (r *subjectRepository) List(ctx context.Context) ([]*models.Subject, error) {
 	cursor, err := r.collection.Find(ctx, bson.M{})
 	if err != nil {

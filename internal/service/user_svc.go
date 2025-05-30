@@ -128,8 +128,8 @@ func (s *UserService) GetAllUsers(ctx context.Context) ([]*models.User, error) {
 	return s.repo.FindAll(ctx)
 }
 
-func (s *UserService) SearchUsers(ctx context.Context, fullName, email, nationalID, phone, studentID string) ([]*models.User, error) {
-	return s.repo.Search(ctx, fullName, email, nationalID, phone, studentID)
+func (s *UserService) SearchUsers(ctx context.Context, id, fullName, email, nationalID, phone, studentID string, page, pageSize int) ([]*models.User, int64, error) {
+	return s.repo.Search(ctx, id, fullName, email, nationalID, phone, studentID, page, pageSize)
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, id string) error {

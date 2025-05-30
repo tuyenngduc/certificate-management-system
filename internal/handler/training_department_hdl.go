@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -184,6 +185,28 @@ func (h *TrainingDepartmentHandler) GetAllClasses(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, classes)
 }
+func (h *TrainingDepartmentHandler) SearchClasses(c *gin.Context) {
+	id := c.Query("id")
+	code := c.Query("code")
+	course := c.Query("course")
+
+	// Lấy thông tin phân trang
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+
+	classes, total, err := h.svc.SearchClasses(c.Request.Context(), id, code, course, page, pageSize)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{
+		"data":       classes,
+		"total":      total,
+		"page":       page,
+		"page_size":  pageSize,
+		"total_page": (total + pageSize - 1) / pageSize,
+	})
+}
 
 func (h *TrainingDepartmentHandler) GetClassByID(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
@@ -238,6 +261,16 @@ func (h *TrainingDepartmentHandler) UpdateClass(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật lớp thành công"})
+}
+
+func (h *UserHandler) GetUsersByClassID(c *gin.Context) {
+	classID := c.Param("class_id")
+	users, err := h.svc.GetUsersByClassID(c.Request.Context(), classID)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, users)
 }
 
 func (h *TrainingDepartmentHandler) DeleteClass(c *gin.Context) {
@@ -331,6 +364,19 @@ func (h *TrainingDepartmentHandler) GetLecturersByFaculty(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, lecturers)
+}
+
+func (h *TrainingDepartmentHandler) SearchLecturers(c *gin.Context) {
+	id := c.Query("id")
+	code := c.Query("code")
+	fullName := c.Query("full_name")
+
+	lecturers, err := h.svc.SearchLecturers(c.Request.Context(), id, code, fullName)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, lecturers)
 }
 func (h *TrainingDepartmentHandler) UpdateLecturer(c *gin.Context) {
 	id := c.Param("id")

@@ -13,6 +13,7 @@ func SetupRouter(
 	accountHandler *handler.AccountHandler,
 	subjectHandler *handler.SubjectHandler,
 	scoreHandler *handler.ScoreHandler,
+	certificateHandler *handler.CertificateHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -31,6 +32,7 @@ func SetupRouter(
 		RegisterAccountRoutes(protected, accountHandler)
 		RegisterSubjectRoutes(protected, subjectHandler)
 		RegisterScoreRoutes(protected, scoreHandler)
+		RegisterCertificateRoutes(protected, certificateHandler)
 	}
 
 	return r
