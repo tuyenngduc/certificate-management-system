@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type SubjectRepository interface {
@@ -18,7 +19,7 @@ type SubjectRepository interface {
 	Update(ctx context.Context, id primitive.ObjectID, update bson.M) error
 	Delete(ctx context.Context, id primitive.ObjectID) error
 	List(ctx context.Context) ([]*models.Subject, error)
-	Search(ctx context.Context, id, code, name string, credit *int) ([]*models.Subject, error)
+	Search(ctx context.Context, id, code, name string, credit *int, page, pageSize int) ([]*models.Subject, int64, error)
 }
 
 type subjectRepository struct {
@@ -72,7 +73,7 @@ func (r *subjectRepository) Delete(ctx context.Context, id primitive.ObjectID) e
 	}
 	return nil
 }
-func (r *subjectRepository) Search(ctx context.Context, id, code, name string, credit *int) ([]*models.Subject, error) {
+func (r *subjectRepository) Search(ctx context.Context, id, code, name string, credit *int, page, pageSize int) ([]*models.Subject, int64, error) {
 	filter := bson.M{}
 	if id != "" {
 		objID, err := primitive.ObjectIDFromHex(id)
@@ -90,9 +91,14 @@ func (r *subjectRepository) Search(ctx context.Context, id, code, name string, c
 		filter["credit"] = *credit
 	}
 
-	cursor, err := r.collection.Find(ctx, filter)
+	total, _ := r.collection.CountDocuments(ctx, filter)
+	opts := options.Find().
+		SetSkip(int64((page - 1) * pageSize)).
+		SetLimit(int64(pageSize))
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
@@ -100,11 +106,11 @@ func (r *subjectRepository) Search(ctx context.Context, id, code, name string, c
 	for cursor.Next(ctx) {
 		var subject models.Subject
 		if err := cursor.Decode(&subject); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		subjects = append(subjects, &subject)
 	}
-	return subjects, nil
+	return subjects, total, nil
 }
 func (r *subjectRepository) List(ctx context.Context) ([]*models.Subject, error) {
 	cursor, err := r.collection.Find(ctx, bson.M{})

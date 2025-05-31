@@ -17,7 +17,8 @@ type SubjectService interface {
 	DeleteSubject(ctx context.Context, id string) error
 	GetSubjectByID(ctx context.Context, id string) (*models.Subject, error)
 	ListSubjects(ctx context.Context) ([]*models.Subject, error)
-	Search(ctx context.Context, id, code, name string, credit *int) ([]*models.Subject, error)
+	Search(ctx context.Context, id, code, name string, credit *int, page, pageSize int) ([]*models.Subject, int64, error)
+
 	CreateSubjectByFacultyCode(ctx context.Context, req *request.CreateSubjectByExcelRequest) error
 }
 
@@ -136,8 +137,8 @@ func (s *subjectService) GetSubjectByID(ctx context.Context, id string) (*models
 func (s *subjectService) ListSubjects(ctx context.Context) ([]*models.Subject, error) {
 	return s.subjectRepo.List(ctx)
 }
-func (s *subjectService) Search(ctx context.Context, id, code, name string, credit *int) ([]*models.Subject, error) {
-	return s.subjectRepo.Search(ctx, id, code, name, credit)
+func (s *subjectService) Search(ctx context.Context, id, code, name string, credit *int, page, pageSize int) ([]*models.Subject, int64, error) {
+	return s.subjectRepo.Search(ctx, id, code, name, credit, page, pageSize)
 }
 func (s *subjectService) CreateSubjectByFacultyCode(ctx context.Context, req *request.CreateSubjectByExcelRequest) error {
 	existing, err := s.subjectRepo.GetByCode(ctx, req.Code)

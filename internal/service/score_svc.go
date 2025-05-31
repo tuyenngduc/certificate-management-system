@@ -72,6 +72,26 @@ func convertGPAChar(score float64) string {
 		return "F"
 	}
 }
+func gpaCharTo4Scale(gpaChar string) float64 {
+	switch gpaChar {
+	case "A+":
+		return 4.0
+	case "A":
+		return 3.8
+	case "B+":
+		return 3.5
+	case "B":
+		return 3.0
+	case "C+":
+		return 2.4
+	case "D+":
+		return 1.5
+	case "D":
+		return 1.0
+	default:
+		return 0.0
+	}
+}
 
 func (s *scoreService) CreateScore(ctx context.Context, req *request.CreateScoreRequest) error {
 	// Validate ObjectID
@@ -124,6 +144,7 @@ func (s *scoreService) CreateScore(ctx context.Context, req *request.CreateScore
 		ProcessScore: processScore,
 		Total:        totalScore,
 		GPAChar:      convertGPAChar(totalScore),
+		Passed:       req.Final >= 2 && totalScore >= 4.0,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -172,6 +193,7 @@ func (s *scoreService) CreateScoreByCode(ctx context.Context, req *request.Creat
 		ProcessScore: processScore,
 		Total:        totalScore,
 		GPAChar:      convertGPAChar(totalScore),
+		Passed:       req.Final >= 2 && totalScore >= 4.0,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -190,24 +212,24 @@ func (s *scoreService) GetScoresByStudentID(ctx context.Context, studentID strin
 		return nil, err
 	}
 
-	// Lấy thông tin sinh viên 1 lần
 	user, err := s.userRepo.GetByID(ctx, objID)
 	if err != nil || user == nil {
 		return nil, errors.New("không tìm thấy sinh viên")
 	}
 
-	// Chuẩn bị response
 	var results []*response.ScoreWithSubjectAndStudentResponse
 	for _, score := range scores {
 		subject, err := s.subjectRepo.GetByID(ctx, score.SubjectID)
 		if err != nil || subject == nil {
-			continue // hoặc log lỗi nếu cần
+			continue
 		}
+		fmt.Println("DEBUG:", score.Final, score.Total, score.Final >= 2 && score.Total >= 4.0)
 
 		results = append(results, &response.ScoreWithSubjectAndStudentResponse{
 			ID:           score.ID,
 			StudentName:  user.FullName,
 			SubjectName:  subject.Name,
+			Credit:       subject.Credit,
 			Semester:     score.Semester,
 			Attendance:   score.Attendance,
 			Midterm:      score.Midterm,
@@ -215,6 +237,7 @@ func (s *scoreService) GetScoresByStudentID(ctx context.Context, studentID strin
 			ProcessScore: roundToOneDecimalPlace(score.ProcessScore),
 			Total:        roundToOneDecimalPlace(score.Total),
 			GPAChar:      score.GPAChar,
+			Passed:       score.Final >= 2 && score.Total >= 4.0,
 		})
 	}
 
@@ -249,6 +272,7 @@ func (s *scoreService) GetScoresBySubjectID(ctx context.Context, subjectID strin
 			ID:           score.ID,
 			StudentName:  user.FullName,
 			SubjectName:  subject.Name,
+			Credit:       subject.Credit,
 			Semester:     score.Semester,
 			Attendance:   score.Attendance,
 			Midterm:      score.Midterm,
@@ -256,6 +280,7 @@ func (s *scoreService) GetScoresBySubjectID(ctx context.Context, subjectID strin
 			ProcessScore: roundToOneDecimalPlace(score.ProcessScore),
 			Total:        roundToOneDecimalPlace(score.Total),
 			GPAChar:      score.GPAChar,
+			Passed:       score.Final >= 2 && score.Total >= 4.0,
 		})
 	}
 
@@ -363,6 +388,7 @@ func (s *scoreService) ImportScoresBySubjectExcel(ctx context.Context, subjectID
 			ProcessScore: processScore,
 			Total:        totalScore,
 			GPAChar:      convertGPAChar(totalScore),
+			Passed:       req.Final >= 2 && totalScore >= 4.0,
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
@@ -394,22 +420,30 @@ func (s *scoreService) CalculateCGPA(ctx context.Context, studentID string) (*re
 		return nil, err
 	}
 	if len(scores) == 0 {
-		return &response.CGPAResponse{CGPA: 0, TotalSubjects: 0, TotalCredits: 0}, nil
+		return &response.CGPAResponse{CGPA: 0, TotalSubjects: 0, TotalCredits: 0, TotalFailedSubjects: 0}, nil
 	}
 
 	var (
-		totalWeighted float64
-		totalCredits  int
+		totalWeighted       float64
+		totalCredits        int
+		totalFailedSubjects int
+		totalSubjects       int
 	)
 
 	for _, score := range scores {
 		subject, err := s.subjectRepo.GetByID(ctx, score.SubjectID)
 		if err != nil || subject == nil {
-			continue // bỏ qua môn không tìm thấy
+			continue
 		}
-		credit := subject.Credit // giả sử subject có trường Credit int
-		totalWeighted += score.Total * float64(credit)
-		totalCredits += credit
+		totalSubjects++
+
+		credit := subject.Credit
+		if score.Passed {
+			totalWeighted += gpaCharTo4Scale(score.GPAChar) * float64(credit)
+			totalCredits += credit
+		} else {
+			totalFailedSubjects++
+		}
 	}
 
 	cgpa := 0.0
@@ -418,8 +452,9 @@ func (s *scoreService) CalculateCGPA(ctx context.Context, studentID string) (*re
 	}
 
 	return &response.CGPAResponse{
-		CGPA:          cgpa,
-		TotalSubjects: len(scores),
-		TotalCredits:  totalCredits,
+		CGPA:                cgpa,
+		TotalSubjects:       totalSubjects,
+		TotalCredits:        totalCredits,
+		TotalFailedSubjects: totalFailedSubjects,
 	}, nil
 }

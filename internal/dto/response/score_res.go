@@ -15,10 +15,13 @@ type ScoreWithSubjectAndStudentResponse struct {
 	ProcessScore float64            `json:"processScore"`
 	Total        float64            `json:"total"`
 	GPAChar      string             `json:"gpaChar"`
+	Passed       bool               `json:"passed"`
+	Credit       int                `json:"credit"`
 }
 
 type CGPAResponse struct {
-	CGPA          float64 `json:"cgpa"`
-	TotalSubjects int     `json:"totalSubjects"`
-	TotalCredits  int     `json:"totalCredits"`
+	CGPA                float64 `json:"cgpa"`
+	TotalSubjects       int     `json:"totalSubjects"`
+	TotalCredits        int     `json:"totalCredits"`
+	TotalFailedSubjects int     `json:"totalFailedSubjects"`
 }

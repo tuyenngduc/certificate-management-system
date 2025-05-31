@@ -12,13 +12,13 @@ type Score struct {
 	SubjectID primitive.ObjectID `bson:"subject_id"`
 	Semester  string             `bson:"semester"`
 
-	Attendance   float64 `bson:"attendance"`    // điểm chuyên cần
-	Midterm      float64 `bson:"midterm"`       // điểm giữa kỳ
-	Final        float64 `bson:"final"`         // điểm cuối kỳ
-	ProcessScore float64 `bson:"process_score"` // điểm quá trình (tính từ attendance + midterm)
-	Total        float64 `bson:"total"`         // điểm kết thúc học phần
-	GPAChar      string  `bson:"gpa_char"`      // điểm chữ
-
-	CreatedAt time.Time `bson:"created_at"`
-	UpdatedAt time.Time `bson:"updated_at"`
+	Attendance   float64   `bson:"attendance"`
+	Midterm      float64   `bson:"midterm"`
+	Final        float64   `bson:"final"`
+	ProcessScore float64   `bson:"process_score"`
+	Total        float64   `bson:"total"`
+	GPAChar      string    `bson:"gpa_char"`
+	Passed       bool      `bson:"passed"`
+	CreatedAt    time.Time `bson:"created_at"`
+	UpdatedAt    time.Time `bson:"updated_at"`
 }

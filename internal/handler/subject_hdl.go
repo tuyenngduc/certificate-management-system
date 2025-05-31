@@ -61,12 +61,21 @@ func (h *SubjectHandler) SearchSubjects(c *gin.Context) {
 		}
 	}
 
-	subjects, err := h.subjectService.Search(c.Request.Context(), id, code, name, credit)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+
+	subjects, total, err := h.subjectService.Search(c.Request.Context(), id, code, name, credit, page, pageSize)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, subjects)
+	c.JSON(200, gin.H{
+		"data":       subjects,
+		"total":      total,
+		"page":       page,
+		"page_size":  pageSize,
+		"total_page": (total + int64(pageSize) - 1) / int64(pageSize),
+	})
 }
 
 // PUT /subjects/:id
