@@ -5,6 +5,7 @@ type SubjectResponse struct {
 	Code        string `json:"code"`
 	Name        string `json:"name"`
 	Credit      int    `json:"credit"`
-	FacultyID   string `json:"faculty_name"`
+	FacultyCode string `json:"faculty_code"`
+	FacultyName string `json:"faculty_name"`
 	Description string `json:"description,omitempty"`
 }

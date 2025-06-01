@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/tuyenngduc/certificate-management-system/internal/dto/request"
 	"github.com/tuyenngduc/certificate-management-system/internal/dto/response"
+	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
 	"github.com/xuri/excelize/v2"
 )
@@ -72,22 +73,34 @@ func (h *SubjectHandler) SearchSubjects(c *gin.Context) {
 
 	faculties, err := h.trainingDepartmentService.GetAllFaculties(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không lấy được danh sách khoa"})
+		c.JSON(500, gin.H{"error": "Không lấy được danh sách khoa"})
 		return
 	}
-	facultyMap := make(map[string]string)
-	for _, f := range faculties {
-		facultyMap[f.ID.Hex()] = f.Name
+	facultyMap := make(map[string]*models.Faculty)
+	for i := range faculties {
+		facultyMap[faculties[i].ID.Hex()] = &faculties[i]
 	}
 
 	var respSubjects []response.SubjectResponse
 	for _, s := range subjects {
+		faculty := facultyMap[s.FacultyID.Hex()]
 		respSubjects = append(respSubjects, response.SubjectResponse{
-			ID:          s.ID.Hex(),
-			Code:        s.Code,
-			Name:        s.Name,
-			Credit:      s.Credit,
-			FacultyID:   facultyMap[s.FacultyID.Hex()],
+			ID:     s.ID.Hex(),
+			Code:   s.Code,
+			Name:   s.Name,
+			Credit: s.Credit,
+			FacultyCode: func() string {
+				if faculty != nil {
+					return faculty.Code
+				}
+				return ""
+			}(),
+			FacultyName: func() string {
+				if faculty != nil {
+					return faculty.Name
+				}
+				return ""
+			}(),
 			Description: s.Description,
 		})
 	}
@@ -168,13 +181,18 @@ func (h *SubjectHandler) GetSubject(c *gin.Context) {
 	if err == nil && faculty != nil {
 		facultyName = faculty.Name
 	}
+	facultyCode := ""
+	if err == nil && faculty != nil {
+		facultyCode = faculty.Code
+	}
 
 	resp := response.SubjectResponse{
 		ID:          subject.ID.Hex(),
 		Code:        subject.Code,
 		Name:        subject.Name,
 		Credit:      subject.Credit,
-		FacultyID:   facultyName, // trả về tên khoa
+		FacultyCode: facultyCode,
+		FacultyName: facultyName,
 		Description: subject.Description,
 	}
 
@@ -189,32 +207,39 @@ func (h *SubjectHandler) ListSubjects(c *gin.Context) {
 		return
 	}
 
-	// Lấy danh sách khoa và tạo map facultyID -> facultyName
+	// Lấy danh sách khoa và tạo map facultyID -> *Faculty
 	faculties, err := h.trainingDepartmentService.GetAllFaculties(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không lấy được danh sách khoa"})
 		return
 	}
-	facultyMap := make(map[string]string)
-	for _, f := range faculties {
-		facultyMap[f.ID.Hex()] = f.Name
+	facultyMap := make(map[string]*models.Faculty)
+	for i := range faculties {
+		facultyMap[faculties[i].ID.Hex()] = &faculties[i]
 	}
 
 	var result []response.SubjectResponse
 	for _, s := range subjects {
+		faculty := facultyMap[s.FacultyID.Hex()]
+		facultyCode := ""
+		facultyName := ""
+		if faculty != nil {
+			facultyCode = faculty.Code
+			facultyName = faculty.Name
+		}
 		result = append(result, response.SubjectResponse{
 			ID:          s.ID.Hex(),
 			Code:        s.Code,
 			Name:        s.Name,
 			Credit:      s.Credit,
-			FacultyID:   facultyMap[s.FacultyID.Hex()], // Trả về tên khoa thay vì id
+			FacultyCode: facultyCode,
+			FacultyName: facultyName,
 			Description: s.Description,
 		})
 	}
 
 	c.JSON(http.StatusOK, result)
 }
-
 func (h *SubjectHandler) ImportSubjects(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
