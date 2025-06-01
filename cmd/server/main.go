@@ -5,10 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/gin-gonic/gin/binding"
-	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
-	"github.com/tuyenngduc/certificate-management-system/internal/dto/request"
 	"github.com/tuyenngduc/certificate-management-system/internal/handler"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
@@ -26,6 +23,7 @@ func main() {
 	}
 	db := database.DB
 	seedAdminAccount(db)
+	InitValidator()
 
 	emailSender := utils.NewSMTPSender(
 		os.Getenv("EMAIL_FROM"),
@@ -75,11 +73,5 @@ func main() {
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Lỗi khi khởi động server: %v", err)
-	}
-}
-
-func init() {
-	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		request.RegisterClassValidators(v)
 	}
 }

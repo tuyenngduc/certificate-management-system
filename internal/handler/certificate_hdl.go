@@ -3,13 +3,11 @@ package handler
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/tuyenngduc/certificate-management-system/internal/dto/request"
-	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
 )
 
@@ -24,42 +22,17 @@ func NewCertificateHandler(certService *service.CertificateService) *Certificate
 func (h *CertificateHandler) CreateCertificate(c *gin.Context) {
 	var req request.CreateCertificateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userID, err := primitive.ObjectIDFromHex(req.UserID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
-		return
-	}
-
-	issueDate, err := time.Parse(time.RFC3339, req.IssueDate)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid issue_date format"})
-		return
-	}
-
-	cert := &models.Certificate{
-		UserID:            userID,
-		CertificateType:   req.CertificateType,
-		Name:              req.Name,
-		Issuer:            req.Issuer,
-		IssueDate:         issueDate,
-		CertificateNumber: req.CertificateNumber,
-		Status:            "issued", // mặc định trạng thái là issued
-	}
-
-	err = h.certService.IssueCertificate(context.Background(), cert)
+	cert, err := h.certService.CreateCertificate(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message":        "Certificate issued successfully",
-		"certificate_id": cert.ID.Hex(),
-	})
+	c.JSON(http.StatusCreated, cert)
 }
 
 func (h *CertificateHandler) GetCertificateByID(c *gin.Context) {
@@ -77,4 +50,21 @@ func (h *CertificateHandler) GetCertificateByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, cert)
+}
+
+func (h *CertificateHandler) HashCertificate(c *gin.Context) {
+	idParam := c.Param("id")
+	certID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID chứng chỉ không hợp lệ"})
+		return
+	}
+
+	err = h.certService.HashCertificateByID(certID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật hash chứng chỉ thành công"})
 }

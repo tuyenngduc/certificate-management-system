@@ -19,6 +19,7 @@ import (
 type ScoreService interface {
 	CreateScore(ctx context.Context, req *request.CreateScoreRequest) error
 	CreateScoreByCode(ctx context.Context, req *request.CreateScoreByExcelRequest) error
+	GetScoreDetailByID(ctx context.Context, id primitive.ObjectID) (*response.ScoreWithSubjectAndStudentResponse, error)
 	GetScoresBySubjectID(ctx context.Context, subjectID string) ([]*response.ScoreWithSubjectAndStudentResponse, error)
 	UpdateScore(ctx context.Context, id string, req *request.UpdateScoreRequest) error
 	ImportScoresBySubjectExcel(ctx context.Context, subjectCode string, reqs []request.ImportScoresBySubjectExcelRequest) ([]string, error)
@@ -406,6 +407,40 @@ func (s *scoreService) ImportScoresBySubjectExcel(ctx context.Context, subjectID
 
 func itoa(i int) string {
 	return fmt.Sprintf("%d", i)
+}
+func (s *scoreService) GetScoreDetailByID(ctx context.Context, id primitive.ObjectID) (*response.ScoreWithSubjectAndStudentResponse, error) {
+	score, err := s.repo.GetScoreByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if score == nil {
+		return nil, errors.New("không tìm thấy điểm")
+	}
+
+	student, _ := s.userRepo.GetByID(ctx, score.StudentID)
+	if student == nil {
+		return nil, errors.New("không tìm thấy sinh viên")
+	}
+	subject, _ := s.subjectRepo.GetByID(ctx, score.SubjectID)
+	if subject == nil {
+		return nil, errors.New("không tìm thấy môn học")
+	}
+
+	resp := &response.ScoreWithSubjectAndStudentResponse{
+		ID:           score.ID,
+		StudentName:  student.FullName,
+		SubjectName:  subject.Name,
+		Semester:     score.Semester,
+		Attendance:   score.Attendance,
+		Midterm:      score.Midterm,
+		Final:        score.Final,
+		ProcessScore: score.ProcessScore,
+		Total:        score.Total,
+		GPAChar:      score.GPAChar,
+		Passed:       score.Passed,
+		Credit:       subject.Credit,
+	}
+	return resp, nil
 }
 
 func (s *scoreService) CalculateCGPA(ctx context.Context, studentID string) (*response.CGPAResponse, error) {

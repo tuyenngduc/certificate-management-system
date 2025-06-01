@@ -9,6 +9,7 @@ func RegisterScoreRoutes(rg *gin.RouterGroup, handler *handler.ScoreHandler) {
 	score := rg.Group("/scores")
 	{
 		score.POST("/", handler.CreateScore)
+		score.GET("/:id", handler.GetScoreDetailByID)
 		score.POST("/import-excel", handler.ImportScoresExcel)
 		score.GET("/student/:student_id", handler.GetScoresByStudent)
 		score.GET("/subject/:subject_id", handler.GetScoresBySubject)

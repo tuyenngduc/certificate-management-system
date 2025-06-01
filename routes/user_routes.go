@@ -11,6 +11,7 @@ func RegisterUserRoutes(rg *gin.RouterGroup, handler *handler.UserHandler) {
 	rg.POST("/users/import-excel", handler.ImportUsersFromExcel)
 	rg.GET("/users", handler.GetAllUsers)
 	rg.GET("/users/search", handler.SearchUsers)
+	rg.GET("/users/:id", handler.GetUserByID)
 	rg.PUT("/users/:id", handler.UpdateUser)
 	rg.DELETE("/users/:id", handler.DeleteUser)
 	rg.GET("/users/class/:class_id", handler.GetUsersByClassID)

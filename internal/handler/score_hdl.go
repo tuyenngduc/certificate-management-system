@@ -8,12 +8,15 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/dto/request"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
 	"github.com/xuri/excelize/v2"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/gin-gonic/gin"
 )
 
 type ScoreHandler struct {
 	scoreService service.ScoreService
+	userSvc      service.UserService
+	subjectSvc   service.SubjectService
 }
 
 func NewScoreHandler(scoreSvc service.ScoreService) *ScoreHandler {
@@ -132,6 +135,32 @@ func (h *ScoreHandler) GetScoresByStudent(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"scores": scores})
+}
+
+// Handler
+func (h *ScoreHandler) GetScoreDetailByID(c *gin.Context) {
+	id := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	resp, err := h.scoreService.GetScoreDetailByID(c.Request.Context(), objID)
+	if err != nil {
+		if err.Error() == "Không tìm thấy sinh viên" {
+			c.JSON(404, gin.H{"error": "Không tìm thấy sinh viên"})
+			return
+		}
+		if err.Error() == "Không tìm thấy môn học" {
+			c.JSON(404, gin.H{"error": "Không tìm thấy môn học"})
+			return
+		}
+		c.JSON(404, gin.H{"error": "Không tìm thấy điểm"})
+		return
+	}
+
+	c.JSON(200, resp)
 }
 
 func (h *ScoreHandler) GetScoresBySubject(c *gin.Context) {

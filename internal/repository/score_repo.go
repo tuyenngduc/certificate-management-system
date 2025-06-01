@@ -25,17 +25,6 @@ func (r *ScoreRepository) CreateScore(ctx context.Context, score *models.Score) 
 	return err
 }
 
-func (r *ScoreRepository) GetScoreByID(ctx context.Context, id primitive.ObjectID) (*models.Score, error) {
-	var score models.Score
-	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&score)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &score, nil
-}
 func (r *ScoreRepository) IsScoreExists(ctx context.Context, studentID, subjectID, semester string) (bool, error) {
 	studentObjID, err := primitive.ObjectIDFromHex(studentID)
 	if err != nil {
@@ -98,4 +87,16 @@ func (r *ScoreRepository) UpdateScore(ctx context.Context, id primitive.ObjectID
 	update["updated_at"] = time.Now()
 	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
 	return err
+}
+
+func (r *ScoreRepository) GetScoreByID(ctx context.Context, id primitive.ObjectID) (*models.Score, error) {
+	var score models.Score
+	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&score)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &score, nil
 }

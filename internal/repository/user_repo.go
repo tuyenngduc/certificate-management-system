@@ -32,7 +32,10 @@ func (r *UserRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*m
 	if err == mongo.ErrNoDocuments {
 		return nil, nil
 	}
-	return &user, err
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {

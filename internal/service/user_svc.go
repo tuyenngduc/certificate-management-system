@@ -127,6 +127,9 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req *request.Cr
 func (s *UserService) GetAllUsers(ctx context.Context) ([]*models.User, error) {
 	return s.repo.FindAll(ctx)
 }
+func (s *UserService) GetUserByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
+	return s.repo.GetByID(ctx, id)
+}
 
 func (s *UserService) SearchUsers(ctx context.Context, id, fullName, email, nationalID, phone, studentID string, page, pageSize int) ([]*models.User, int64, error) {
 	return s.repo.Search(ctx, id, fullName, email, nationalID, phone, studentID, page, pageSize)

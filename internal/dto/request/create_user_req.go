@@ -5,7 +5,7 @@ type CreateUserRequest struct {
 	Email        string `json:"email" binding:"omitempty,email"`
 	StudentID    string `json:"student_id" binding:"required"`
 	Ethnicity    string `json:"ethnicity" binding:"omitempty"`
-	Gender       string `json:"gender" binding:"omitempty,oneof=male female other"`
+	Gender       string `json:"gender" binding:"omitempty,oneof=Nam Nữ Khác"`
 	FacultyCode  string `json:"faculty_code" binding:"required"`
 	ClassCode    string `json:"class_code" binding:"required"`
 	Course       string `json:"course" binding:"required"`
@@ -42,7 +42,7 @@ var ValidateMessages = map[string]map[string]string{
 		"email": "Email không hợp lệ",
 	},
 	"Gender": {
-		"oneof": "Giới tính phải là male, female hoặc other",
+		"oneof": "Giới tính phải là Nam, Nữ hoặc Khác",
 	},
 	"PhoneNumber": {
 		"e164": "Số điện thoại không đúng định dạng quốc tế",

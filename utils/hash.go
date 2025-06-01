@@ -8,12 +8,12 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 )
 
-func ComputeCertificateHash(data models.CertificateHashData) (string, error) {
-	jsonBytes, err := json.Marshal(data)
+func HashCertificateData(cert *models.Certificate) (string, error) {
+	hashData := models.BuildCertificateHashData(cert)
+	jsonBytes, err := json.Marshal(hashData)
 	if err != nil {
 		return "", err
 	}
-
 	hash := sha256.Sum256(jsonBytes)
 	return hex.EncodeToString(hash[:]), nil
 }

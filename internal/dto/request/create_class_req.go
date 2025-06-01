@@ -1,11 +1,5 @@
 package request
 
-import (
-	"regexp"
-
-	"github.com/go-playground/validator/v10"
-)
-
 type CreateClassRequest struct {
 	Code      string `json:"code" binding:"required,min=2,max=20"`
 	Course    string `json:"course" binding:"required,courseyear"`
@@ -25,11 +19,4 @@ var ClassValidateMessages = map[string]map[string]string{
 	"FacultyID": {
 		"required": "ID khoa là bắt buộc",
 	},
-}
-
-func RegisterClassValidators(v *validator.Validate) {
-	v.RegisterValidation("courseyear", func(fl validator.FieldLevel) bool {
-		re := regexp.MustCompile(`^\d{4}-\d{4}$`)
-		return re.MatchString(fl.Field().String())
-	})
 }

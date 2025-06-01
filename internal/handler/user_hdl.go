@@ -82,6 +82,26 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "Tạo user thành công"})
 }
+func (h *UserHandler) GetUserByID(c *gin.Context) {
+	id := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	user, err := h.svc.GetUserByID(c.Request.Context(), objID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Lỗi hệ thống"})
+		return
+	}
+	if user == nil {
+		c.JSON(404, gin.H{"error": "Không tìm thấy user"})
+		return
+	}
+
+	c.JSON(200, user)
+}
 
 func (h *UserHandler) BulkCreateUser(c *gin.Context) {
 	var req request.BulkCreateUserRequest

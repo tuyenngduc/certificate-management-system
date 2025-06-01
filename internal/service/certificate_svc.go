@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/tuyenngduc/certificate-management-system/internal/dto/request"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
 	"github.com/tuyenngduc/certificate-management-system/utils"
@@ -18,18 +20,49 @@ func NewCertificateService(certRepo repository.CertificateRepository) *Certifica
 	return &CertificateService{certRepo: certRepo}
 }
 
-func (s *CertificateService) IssueCertificate(ctx context.Context, cert *models.Certificate) error {
-	hashData := models.BuildCertificateHashData(cert)
+func (s *CertificateService) CreateCertificate(ctx context.Context, req request.CreateCertificateRequest) (*models.Certificate, error) {
+	userID, err := primitive.ObjectIDFromHex(req.UserID)
+	if err != nil {
+		return nil, errors.New("invalid user_id")
+	}
 
-	hash, err := utils.ComputeCertificateHash(hashData)
+	cert := &models.Certificate{
+		ID:                 primitive.NewObjectID(),
+		UserID:             userID,
+		CertificateType:    req.CertificateType,
+		Name:               req.Name,
+		Issuer:             req.Issuer,
+		IssueDate:          req.IssueDate,
+		SerialNumber:       req.SerialNumber,
+		RegistrationNumber: req.RegistrationNumber,
+		Status:             "pending",
+		Signed:             false,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+
+	if err := s.certRepo.CreateCertificate(ctx, cert); err != nil {
+		return nil, err
+	}
+
+	return cert, nil
+}
+
+func (s *CertificateService) HashCertificateByID(id primitive.ObjectID) error {
+	cert, err := s.certRepo.GetByID(context.Background(), id)
 	if err != nil {
 		return err
 	}
 
-	cert.BlockchainHash = hash
-	cert.BlockchainTimestamp = time.Now()
+	hash, err := utils.HashCertificateData(cert)
+	if err != nil {
+		return err
+	}
 
-	return s.certRepo.CreateCertificate(ctx, cert)
+	cert.Hash = hash
+	cert.UpdatedAt = time.Now()
+
+	return s.certRepo.UpdateCertificate(cert)
 }
 
 func (s *CertificateService) GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.Certificate, error) {

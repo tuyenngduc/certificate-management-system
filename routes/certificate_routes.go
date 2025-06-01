@@ -9,6 +9,7 @@ func RegisterCertificateRoutes(rg *gin.RouterGroup, handler *handler.Certificate
 	cert := rg.Group("/certificates")
 	{
 		cert.POST("/", handler.CreateCertificate)
+		cert.POST("/:id/hash", handler.HashCertificate)
 		cert.GET("/:id", handler.GetCertificateByID)
 	}
 }
