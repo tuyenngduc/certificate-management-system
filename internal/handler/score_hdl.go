@@ -15,8 +15,6 @@ import (
 
 type ScoreHandler struct {
 	scoreService service.ScoreService
-	userSvc      service.UserService
-	subjectSvc   service.SubjectService
 }
 
 func NewScoreHandler(scoreSvc service.ScoreService) *ScoreHandler {

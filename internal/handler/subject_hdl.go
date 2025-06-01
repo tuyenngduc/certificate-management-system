@@ -69,8 +69,31 @@ func (h *SubjectHandler) SearchSubjects(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+
+	faculties, err := h.trainingDepartmentService.GetAllFaculties(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không lấy được danh sách khoa"})
+		return
+	}
+	facultyMap := make(map[string]string)
+	for _, f := range faculties {
+		facultyMap[f.ID.Hex()] = f.Name
+	}
+
+	var respSubjects []response.SubjectResponse
+	for _, s := range subjects {
+		respSubjects = append(respSubjects, response.SubjectResponse{
+			ID:          s.ID.Hex(),
+			Code:        s.Code,
+			Name:        s.Name,
+			Credit:      s.Credit,
+			FacultyID:   facultyMap[s.FacultyID.Hex()],
+			Description: s.Description,
+		})
+	}
+
 	c.JSON(200, gin.H{
-		"data":       subjects,
+		"data":       respSubjects,
 		"total":      total,
 		"page":       page,
 		"page_size":  pageSize,
