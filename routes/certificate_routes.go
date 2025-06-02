@@ -8,8 +8,11 @@ import (
 func RegisterCertificateRoutes(rg *gin.RouterGroup, handler *handler.CertificateHandler) {
 	cert := rg.Group("/certificates")
 	{
+		cert.GET("/", handler.GetAllCertificates)
 		cert.POST("/", handler.CreateCertificate)
 		cert.POST("/:id/hash", handler.HashCertificate)
 		cert.GET("/:id", handler.GetCertificateByID)
+		cert.DELETE("/:id", handler.DeleteCertificate)
+
 	}
 }

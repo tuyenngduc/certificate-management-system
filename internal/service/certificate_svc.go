@@ -23,7 +23,9 @@ func NewCertificateService(certRepo repository.CertificateRepository, userRepo r
 		userRepo: userRepo,
 	}
 }
-
+func (s *CertificateService) GetAllCertificates(ctx context.Context) ([]*models.Certificate, error) {
+	return s.certRepo.GetAllCertificates(ctx)
+}
 func (s *CertificateService) CreateCertificate(ctx context.Context, req request.CreateCertificateRequest) (*models.Certificate, error) {
 	userID, err := primitive.ObjectIDFromHex(req.UserID)
 	if err != nil {
@@ -52,11 +54,11 @@ func (s *CertificateService) CreateCertificate(ctx context.Context, req request.
 		UserID:             userID,
 		CertificateType:    req.CertificateType,
 		Name:               req.Name,
-		Issuer:             req.Issuer,
-		IssueDate:          req.IssueDate,
+		Issuer:             "Học Viện Kỹ Thuật Mật Mã",
+		IssueDate:          time.Now(),
 		SerialNumber:       req.SerialNumber,
 		RegistrationNumber: req.RegistrationNumber,
-		Status:             "pending",
+		Status:             "Chờ ký số",
 		Signed:             false,
 		CreatedAt:          time.Now(),
 		UpdatedAt:          time.Now(),
@@ -88,4 +90,8 @@ func (s *CertificateService) HashCertificateByID(id primitive.ObjectID) error {
 
 func (s *CertificateService) GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.Certificate, error) {
 	return s.certRepo.GetByID(ctx, id)
+}
+
+func (s *CertificateService) DeleteCertificateByID(ctx context.Context, id primitive.ObjectID) error {
+	return s.certRepo.DeleteByID(ctx, id)
 }
