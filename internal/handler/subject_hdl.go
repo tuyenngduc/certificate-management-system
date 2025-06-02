@@ -89,6 +89,12 @@ func (h *SubjectHandler) SearchSubjects(c *gin.Context) {
 			Code:   s.Code,
 			Name:   s.Name,
 			Credit: s.Credit,
+			FacultyID: func() string {
+				if faculty != nil {
+					return faculty.ID.Hex()
+				}
+				return ""
+			}(),
 			FacultyCode: func() string {
 				if faculty != nil {
 					return faculty.Code
@@ -191,6 +197,7 @@ func (h *SubjectHandler) GetSubject(c *gin.Context) {
 		Code:        subject.Code,
 		Name:        subject.Name,
 		Credit:      subject.Credit,
+		FacultyID:   subject.FacultyID.Hex(),
 		FacultyCode: facultyCode,
 		FacultyName: facultyName,
 		Description: subject.Description,
@@ -232,6 +239,7 @@ func (h *SubjectHandler) ListSubjects(c *gin.Context) {
 			Code:        s.Code,
 			Name:        s.Name,
 			Credit:      s.Credit,
+			FacultyID:   s.FacultyID.Hex(),
 			FacultyCode: facultyCode,
 			FacultyName: facultyName,
 			Description: s.Description,
