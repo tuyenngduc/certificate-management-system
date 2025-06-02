@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/tuyenngduc/certificate-management-system/internal/dto/request"
+	"github.com/tuyenngduc/certificate-management-system/internal/dto/response"
+	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -139,7 +141,29 @@ func (h *TrainingDepartmentHandler) GetClassesByFaculty(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, classes)
+
+	// Lấy thông tin faculty
+	objID, _ := primitive.ObjectIDFromHex(facultyID)
+	faculty, err := h.svc.GetFacultyByID(c.Request.Context(), objID)
+	facultyCode := ""
+	facultyName := ""
+	if err == nil && faculty != nil {
+		facultyCode = faculty.Code
+		facultyName = faculty.Name
+	}
+
+	var resp []response.ClassResponse
+	for _, class := range classes {
+		resp = append(resp, response.ClassResponse{
+			ID:          class.ID.Hex(),
+			Code:        class.Code,
+			Course:      class.Course,
+			FacultyCode: facultyCode,
+			FacultyName: facultyName,
+		})
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 func (h *TrainingDepartmentHandler) CreateClass(c *gin.Context) {
 	var req request.CreateClassRequest
@@ -190,7 +214,6 @@ func (h *TrainingDepartmentHandler) SearchClasses(c *gin.Context) {
 	code := c.Query("code")
 	course := c.Query("course")
 
-	// Lấy thông tin phân trang
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
@@ -199,8 +222,38 @@ func (h *TrainingDepartmentHandler) SearchClasses(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Lấy danh sách faculty và tạo map facultyID -> faculty
+	faculties, err := h.svc.GetAllFaculties(c.Request.Context())
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Không lấy được danh sách khoa"})
+		return
+	}
+	facultyMap := make(map[string]*models.Faculty)
+	for i := range faculties {
+		facultyMap[faculties[i].ID.Hex()] = &faculties[i]
+	}
+
+	var resp []response.ClassResponse
+	for _, class := range classes {
+		faculty := facultyMap[class.FacultyID.Hex()]
+		facultyCode := ""
+		facultyName := ""
+		if faculty != nil {
+			facultyCode = faculty.Code
+			facultyName = faculty.Name
+		}
+		resp = append(resp, response.ClassResponse{
+			ID:          class.ID.Hex(),
+			Code:        class.Code,
+			Course:      class.Course,
+			FacultyCode: facultyCode,
+			FacultyName: facultyName,
+		})
+	}
+
 	c.JSON(200, gin.H{
-		"data":       classes,
+		"data":       resp,
 		"total":      total,
 		"page":       page,
 		"page_size":  pageSize,
@@ -215,11 +268,28 @@ func (h *TrainingDepartmentHandler) GetClassByID(c *gin.Context) {
 		return
 	}
 	class, err := h.svc.GetClassByID(c.Request.Context(), id)
-	if err != nil {
+	if err != nil || class == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy lớp"})
 		return
 	}
-	c.JSON(http.StatusOK, class)
+
+	faculty, err := h.svc.GetFacultyByID(c.Request.Context(), class.FacultyID)
+	facultyCode := ""
+	facultyName := ""
+	if err == nil && faculty != nil {
+		facultyCode = faculty.Code
+		facultyName = faculty.Name
+	}
+
+	resp := response.ClassResponse{
+		ID:          class.ID.Hex(),
+		Code:        class.Code,
+		Course:      class.Course,
+		FacultyCode: facultyCode,
+		FacultyName: facultyName,
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *TrainingDepartmentHandler) UpdateClass(c *gin.Context) {
