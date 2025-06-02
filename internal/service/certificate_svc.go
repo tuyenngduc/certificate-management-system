@@ -14,16 +14,37 @@ import (
 
 type CertificateService struct {
 	certRepo repository.CertificateRepository
+	userRepo repository.UserRepository
 }
 
-func NewCertificateService(certRepo repository.CertificateRepository) *CertificateService {
-	return &CertificateService{certRepo: certRepo}
+func NewCertificateService(certRepo repository.CertificateRepository, userRepo repository.UserRepository) *CertificateService {
+	return &CertificateService{
+		certRepo: certRepo,
+		userRepo: userRepo,
+	}
 }
 
 func (s *CertificateService) CreateCertificate(ctx context.Context, req request.CreateCertificateRequest) (*models.Certificate, error) {
 	userID, err := primitive.ObjectIDFromHex(req.UserID)
 	if err != nil {
-		return nil, errors.New("invalid user_id")
+		return nil, errors.New("id không hợp lệ")
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, errors.New("lỗi truy vấn user")
+	}
+	if user == nil {
+		return nil, errors.New("user không tồn tại")
+	}
+
+	exist, _ := s.certRepo.FindBySerialNumber(ctx, req.SerialNumber)
+	if exist != nil {
+		return nil, errors.New("số hiệu đã tồn tại")
+	}
+	exist, _ = s.certRepo.FindByRegistrationNumber(ctx, req.RegistrationNumber)
+	if exist != nil {
+		return nil, errors.New("số vào sổ gốc cấp văn bằng đã tồn tại")
 	}
 
 	cert := &models.Certificate{

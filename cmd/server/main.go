@@ -49,7 +49,7 @@ func main() {
 	authSvc := service.NewAuthService(authRepo, userRepo, emailSender)
 	accountSvc := service.NewAccountService(accountRepo)
 	scoreSvc := service.NewScoreService(scoreRepo, userRepo, subjectRepo)
-	certService := service.NewCertificateService(certRepo)
+	certService := service.NewCertificateService(certRepo, *userRepo)
 
 	// Khởi tạo handler
 	subjectHandler := handler.NewSubjectHandler(subjectSvc, trainingDepartmentSvc)

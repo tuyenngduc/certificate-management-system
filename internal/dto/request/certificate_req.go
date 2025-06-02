@@ -9,5 +9,5 @@ type CreateCertificateRequest struct {
 	Issuer             string    `json:"issuer" binding:"required"`
 	IssueDate          time.Time `json:"issue_date" binding:"required"`
 	SerialNumber       string    `json:"serial_number" binding:"required"`
-	RegistrationNumber string    `json:"registration_number"`
+	RegistrationNumber string    `json:"registration_number" binding:"required"`
 }

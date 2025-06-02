@@ -22,19 +22,27 @@ func NewCertificateHandler(certService *service.CertificateService) *Certificate
 func (h *CertificateHandler) CreateCertificate(c *gin.Context) {
 	var req request.CreateCertificateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": "Dữ liệu không hợp lệ", "detail": err.Error()})
 		return
 	}
 
 	cert, err := h.certService.CreateCertificate(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case "user không tồn tại":
+			c.JSON(404, gin.H{"error": err.Error()})
+		case "id không hợp lệ":
+			c.JSON(400, gin.H{"error": err.Error()})
+		case "số hiệu đã tồn tại", "số vào sổ gốc cấp văn bằng đã tồn tại":
+			c.JSON(409, gin.H{"error": err.Error()})
+		default:
+			c.JSON(500, gin.H{"error": "Lỗi hệ thống", "detail": err.Error()})
+		}
 		return
 	}
 
-	c.JSON(http.StatusCreated, cert)
+	c.JSON(201, cert)
 }
-
 func (h *CertificateHandler) GetCertificateByID(c *gin.Context) {
 	idStr := c.Param("id")
 	certID, err := primitive.ObjectIDFromHex(idStr)

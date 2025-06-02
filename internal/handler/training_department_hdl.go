@@ -158,6 +158,7 @@ func (h *TrainingDepartmentHandler) GetClassesByFaculty(c *gin.Context) {
 			ID:          class.ID.Hex(),
 			Code:        class.Code,
 			Course:      class.Course,
+			FacultyID:   class.FacultyID.Hex(),
 			FacultyCode: facultyCode,
 			FacultyName: facultyName,
 		})
@@ -247,6 +248,7 @@ func (h *TrainingDepartmentHandler) SearchClasses(c *gin.Context) {
 			ID:          class.ID.Hex(),
 			Code:        class.Code,
 			Course:      class.Course,
+			FacultyID:   class.FacultyID.Hex(),
 			FacultyCode: facultyCode,
 			FacultyName: facultyName,
 		})
@@ -285,6 +287,7 @@ func (h *TrainingDepartmentHandler) GetClassByID(c *gin.Context) {
 		ID:          class.ID.Hex(),
 		Code:        class.Code,
 		Course:      class.Course,
+		FacultyID:   class.FacultyID.Hex(),
 		FacultyCode: facultyCode,
 		FacultyName: facultyName,
 	}

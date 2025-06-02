@@ -14,6 +14,8 @@ type CertificateRepository interface {
 	CreateCertificate(ctx context.Context, cert *models.Certificate) error
 	UpdateCertificate(cert *models.Certificate) error
 	GetCertificateByID(id primitive.ObjectID) (*models.Certificate, error)
+	FindBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error)
+	FindByRegistrationNumber(ctx context.Context, reg string) (*models.Certificate, error)
 }
 
 type certificateRepository struct {
@@ -50,4 +52,22 @@ func (r *certificateRepository) UpdateCertificate(cert *models.Certificate) erro
 		bson.M{"$set": cert},
 	)
 	return err
+}
+
+func (r *certificateRepository) FindBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error) {
+	var cert models.Certificate
+	err := r.db.Collection("certificates").FindOne(ctx, bson.M{"serial_number": serial}).Decode(&cert)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &cert, err
+}
+
+func (r *certificateRepository) FindByRegistrationNumber(ctx context.Context, reg string) (*models.Certificate, error) {
+	var cert models.Certificate
+	err := r.db.Collection("certificates").FindOne(ctx, bson.M{"registration_number": reg}).Decode(&cert)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &cert, err
 }
