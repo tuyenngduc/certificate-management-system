@@ -10,20 +10,17 @@ type Certificate struct {
 	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	UserID          primitive.ObjectID `bson:"user_id" json:"user_id"`
 	CertificateType string             `bson:"certificate_type" json:"certificate_type"`
-	Name            string             `bson:"name" json:"name"`
 	Issuer          string             `bson:"issuer" json:"issuer"`
 	IssueDate       time.Time          `bson:"issue_date" json:"issue_date"`
-	SerialNumber    string             `bson:"serial_number" json:"serial_number"`
+	SerialNumber    string             `bson:"serial_number" json:"serialNumber"`
 
-	RegistrationNumber string `bson:"registration_number,omitempty" json:"registration_number,omitempty"` // Số vào sổ cấp văn bằng
-	Status             string `bson:"status" json:"status"`
+	RegNo  string `bson:"registration_number,omitempty" json:"regNo"`
+	Status string `bson:"status" json:"status"`
 
-	// Blockchain
 	BlockchainTxID      string    `bson:"blockchain_tx_id,omitempty" json:"blockchain_tx_id,omitempty"`
 	BlockchainHash      string    `bson:"blockchain_hash,omitempty" json:"blockchain_hash,omitempty"`
 	BlockchainTimestamp time.Time `bson:"blockchain_timestamp,omitempty" json:"blockchain_timestamp,omitempty"`
 
-	// Chữ ký số
 	Hash              string    `bson:"hash,omitempty" json:"hash,omitempty"`
 	Signature         string    `bson:"signature,omitempty" json:"signature,omitempty"`
 	Signed            bool      `bson:"signed" json:"signed"`
