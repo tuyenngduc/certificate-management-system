@@ -34,9 +34,6 @@ func SetupRouter(
 	protected.Use(middleware.AuthMiddleware())
 	{
 		RegisterUserRoutes(protected, userHandler)
-		RegisterTrainingDepartmentRoutes(protected, trainingDepartmentHandler)
-		RegisterAccountRoutes(protected, accountHandler)
-		RegisterSubjectRoutes(protected, subjectHandler)
 		RegisterScoreRoutes(protected, scoreHandler)
 		RegisterCertificateRoutes(protected, certificateHandler)
 	}

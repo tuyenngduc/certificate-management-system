@@ -13,9 +13,15 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+type IAuthService interface {
+	RequestOTP(ctx context.Context, input models.RequestOTPInput) error
+	VerifyOTP(ctx context.Context, input *models.VerifyOTPRequest) (string, error)
+	Register(ctx context.Context, req models.RegisterRequest) error
+	Login(ctx context.Context, email, password string) (*models.Account, error)
+}
+
 type AuthService struct {
 	authRepo    repository.AuthRepository
-	userRepo    *repository.UserRepository
 	emailSender utils.EmailSender
 }
 

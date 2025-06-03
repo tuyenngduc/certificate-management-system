@@ -12,21 +12,37 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type UserRepository struct {
+type IUserRepository interface {
+	Insert(ctx context.Context, user *models.User) error
+	GetByID(ctx context.Context, id primitive.ObjectID) (*models.User, error)
+	FindByEmail(ctx context.Context, email string) (*models.User, error)
+	FindByNationalID(ctx context.Context, nationalID string) (*models.User, error)
+	FindByStudentID(ctx context.Context, id string) (*models.User, error)
+	FindByPhoneNumber(ctx context.Context, phone string) (*models.User, error)
+	EnsureIndexes(ctx context.Context) error
+	FindAll(ctx context.Context) ([]*models.User, error)
+	Search(ctx context.Context, id, fullName, email, nationalID, phone, studentID string, page, pageSize int) ([]*models.User, int64, error)
+	GetUsersByClassID(ctx context.Context, classID primitive.ObjectID) ([]*models.User, error)
+	Update(ctx context.Context, id primitive.ObjectID, update bson.M) error
+	Delete(ctx context.Context, id primitive.ObjectID) (bool, error)
+	GetByCode(ctx context.Context, code string) (*models.User, error)
+}
+
+type userRepository struct {
 	collection *mongo.Collection
 }
 
-func NewUserRepository(db *mongo.Database) *UserRepository {
-	return &UserRepository{
+func NewUserRepository(db *mongo.Database) IUserRepository {
+	return &userRepository{
 		collection: db.Collection("users"),
 	}
 }
 
-func (r *UserRepository) Insert(ctx context.Context, user *models.User) error {
+func (r *userRepository) Insert(ctx context.Context, user *models.User) error {
 	_, err := r.collection.InsertOne(ctx, user)
 	return err
 }
-func (r *UserRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
+func (r *userRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
 	var user models.User
 	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
 	if err == mongo.ErrNoDocuments {
@@ -38,7 +54,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*m
 	return &user, nil
 }
 
-func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
 	err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
 	if err != nil {
@@ -47,7 +63,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models
 	return &user, nil
 }
 
-func (r *UserRepository) FindByNationalID(ctx context.Context, nationalID string) (*models.User, error) {
+func (r *userRepository) FindByNationalID(ctx context.Context, nationalID string) (*models.User, error) {
 	var user models.User
 	err := r.collection.FindOne(ctx, bson.M{"nationalId": nationalID}).Decode(&user)
 	if err != nil {
@@ -55,7 +71,7 @@ func (r *UserRepository) FindByNationalID(ctx context.Context, nationalID string
 	}
 	return &user, nil
 }
-func (r *UserRepository) FindByStudentID(ctx context.Context, id string) (*models.User, error) {
+func (r *userRepository) FindByStudentID(ctx context.Context, id string) (*models.User, error) {
 	var user models.User
 	err := r.collection.FindOne(ctx, bson.M{"studentId": id}).Decode(&user)
 	if err != nil {
@@ -64,7 +80,7 @@ func (r *UserRepository) FindByStudentID(ctx context.Context, id string) (*model
 	return &user, nil
 }
 
-func (r *UserRepository) FindByPhoneNumber(ctx context.Context, phone string) (*models.User, error) {
+func (r *userRepository) FindByPhoneNumber(ctx context.Context, phone string) (*models.User, error) {
 	var user models.User
 	err := r.collection.FindOne(ctx, bson.M{"phoneNumber": phone}).Decode(&user)
 	if err != nil {
@@ -73,8 +89,7 @@ func (r *UserRepository) FindByPhoneNumber(ctx context.Context, phone string) (*
 	return &user, nil
 }
 
-// Tạo unique index cho các trường quan trọng
-func (r *UserRepository) EnsureIndexes(ctx context.Context) error {
+func (r *userRepository) EnsureIndexes(ctx context.Context) error {
 	indexes := []mongo.IndexModel{
 		{
 			Keys:    bson.D{{Key: "email", Value: 1}},
@@ -97,7 +112,7 @@ func (r *UserRepository) EnsureIndexes(ctx context.Context) error {
 	return err
 }
 
-func (r *UserRepository) FindAll(ctx context.Context) ([]*models.User, error) {
+func (r *userRepository) FindAll(ctx context.Context) ([]*models.User, error) {
 	cursor, err := r.collection.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
@@ -114,7 +129,7 @@ func (r *UserRepository) FindAll(ctx context.Context) ([]*models.User, error) {
 	}
 	return users, nil
 }
-func (r *UserRepository) Search(ctx context.Context, id, fullName, email, nationalID, phone, studentID string, page, pageSize int) ([]*models.User, int64, error) {
+func (r *userRepository) Search(ctx context.Context, id, fullName, email, nationalID, phone, studentID string, page, pageSize int) ([]*models.User, int64, error) {
 	filter := bson.M{}
 	if id != "" {
 		objID, err := primitive.ObjectIDFromHex(id)
@@ -159,7 +174,7 @@ func (r *UserRepository) Search(ctx context.Context, id, fullName, email, nation
 	}
 	return users, total, nil
 }
-func (r *UserRepository) GetUsersByClassID(ctx context.Context, classID primitive.ObjectID) ([]*models.User, error) {
+func (r *userRepository) GetUsersByClassID(ctx context.Context, classID primitive.ObjectID) ([]*models.User, error) {
 	filter := bson.M{"classId": classID}
 	cursor, err := r.collection.Find(ctx, filter)
 	if err != nil {
@@ -177,12 +192,12 @@ func (r *UserRepository) GetUsersByClassID(ctx context.Context, classID primitiv
 	}
 	return users, nil
 }
-func (r *UserRepository) Update(ctx context.Context, id primitive.ObjectID, update bson.M) error {
+func (r *userRepository) Update(ctx context.Context, id primitive.ObjectID, update bson.M) error {
 	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
 	return err
 }
 
-func (r *UserRepository) Delete(ctx context.Context, id primitive.ObjectID) (bool, error) {
+func (r *userRepository) Delete(ctx context.Context, id primitive.ObjectID) (bool, error) {
 	res, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
 		return false, err
@@ -190,7 +205,7 @@ func (r *UserRepository) Delete(ctx context.Context, id primitive.ObjectID) (boo
 	return res.DeletedCount > 0, nil
 }
 
-func (r *UserRepository) GetByCode(ctx context.Context, code string) (*models.User, error) {
+func (r *userRepository) GetByCode(ctx context.Context, code string) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
