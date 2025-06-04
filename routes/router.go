@@ -9,6 +9,7 @@ import (
 func SetupRouter(
 	userHandler *handlers.UserHandler,
 	authHandler *handlers.AuthHandler,
+	certificateHandler *handlers.CertificateHandler,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -33,5 +34,7 @@ func SetupRouter(
 	api.POST("/auth/verify-otp", authHandler.VerifyOTP)
 	api.POST("/auth/register", authHandler.Register)
 
+	//Certificate routes
+	api.POST("/certificates", certificateHandler.CreateCertificate)
 	return r
 }

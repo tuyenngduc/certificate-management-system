@@ -37,6 +37,24 @@ func TranslateError(field, tag string) string {
 		"Password": {
 			"required": "Mật khẩu không được để trống",
 		},
+		"CertificateType": {
+			"required": "Loại văn bằng không được để trống",
+		},
+		"Name": {
+			"required": "Tên văn bằng không được để trống",
+		},
+		"Issuer": {
+			"required": "Nơi cấp không được để trống",
+		},
+		"IssueDate": {
+			"required": "Ngày cấp không được để trống",
+		},
+		"SerialNumber": {
+			"required": "Số hiệu văn bằng không được để trống",
+		},
+		"RegistrationNumber": {
+			"required": "Số vào sổ không được để trống",
+		},
 	}
 
 	if fieldMsg, ok := messages[field]; ok {

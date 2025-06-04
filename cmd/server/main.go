@@ -39,9 +39,14 @@ func main() {
 	authService := service.NewAuthService(authRepo, userRepo, emailSender)
 	authHandler := handlers.NewAuthHandler(authService)
 
+	certificateRepo := repository.NewCertificateRepository(db)
+	certificateService := service.NewCertificateService(certificateRepo, userRepo)
+	certificateHandler := handlers.NewCertificateHandler(certificateService)
+
 	r := routes.SetupRouter(
 		userHandler,
 		authHandler,
+		certificateHandler,
 	)
 
 	go func() {
