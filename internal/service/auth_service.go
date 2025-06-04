@@ -13,27 +13,29 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type IAuthService interface {
+type AuthService interface {
 	RequestOTP(ctx context.Context, input models.RequestOTPInput) error
-	VerifyOTP(ctx context.Context, input *models.VerifyOTPRequest) (string, error)
+	VerifyOTP(ctx context.Context, req *models.VerifyOTPRequest) (string, error)
 	Register(ctx context.Context, req models.RegisterRequest) error
 	Login(ctx context.Context, email, password string) (*models.Account, error)
+	GetAllAccounts(ctx context.Context) ([]*models.Account, error)
 }
 
-type AuthService struct {
+type authService struct {
 	authRepo    repository.AuthRepository
+	userRepo    repository.UserRepository
 	emailSender utils.EmailSender
 }
 
-func NewAuthService(authRepo repository.AuthRepository, userRepo *repository.UserRepository, emailSender utils.EmailSender) *AuthService {
-	return &AuthService{
+func NewAuthService(authRepo repository.AuthRepository, userRepo repository.UserRepository, emailSender utils.EmailSender) AuthService {
+	return &authService{
 		authRepo:    authRepo,
 		userRepo:    userRepo,
 		emailSender: emailSender,
 	}
 }
 
-func (s *AuthService) RequestOTP(ctx context.Context, input models.RequestOTPInput) error {
+func (s *authService) RequestOTP(ctx context.Context, input models.RequestOTPInput) error {
 	_, err := s.userRepo.FindByEmail(ctx, input.StudentEmail)
 	if err != nil {
 		return fmt.Errorf("email không tồn tại trong hệ thống")
@@ -54,7 +56,7 @@ func (s *AuthService) RequestOTP(ctx context.Context, input models.RequestOTPInp
 	return s.emailSender.SendEmail(input.StudentEmail, "Mã xác thực OTP", body)
 }
 
-func (s *AuthService) VerifyOTP(ctx context.Context, input *models.VerifyOTPRequest) (string, error) {
+func (s *authService) VerifyOTP(ctx context.Context, input *models.VerifyOTPRequest) (string, error) {
 	otpRecord, err := s.authRepo.FindLatestOTPByEmail(ctx, input.StudentEmail)
 	if err != nil {
 		return "", fmt.Errorf("không tìm thấy mã OTP")
@@ -70,13 +72,16 @@ func (s *AuthService) VerifyOTP(ctx context.Context, input *models.VerifyOTPRequ
 
 	user, err := s.userRepo.FindByEmail(ctx, input.StudentEmail)
 	if err != nil {
-		return "", fmt.Errorf("không tìm thấy người dùng")
+		return "", fmt.Errorf("lỗi khi tìm người dùng: %v", err)
+	}
+	if user == nil {
+		return "", fmt.Errorf("người dùng không tồn tại")
 	}
 
 	return user.ID.Hex(), nil
 }
 
-func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) error {
+func (s *authService) Register(ctx context.Context, req models.RegisterRequest) error {
 	// Check xem PersonalEmail đã tồn tại chưa
 	exists, err := s.authRepo.IsPersonalEmailExist(ctx, req.PersonalEmail)
 	if err != nil {
@@ -93,9 +98,9 @@ func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) 
 	}
 
 	// Lấy user để lấy email sinh viên
-	user, err := s.authRepo.GetUserByID(ctx, userObjID)
+	user, err := s.userRepo.GetUserByID(ctx, userObjID)
 	if err != nil {
-		return fmt.Errorf("không tìm thấy user")
+		return fmt.Errorf("không tìm thấy user: %v", err)
 	}
 
 	// Hash mật khẩu
@@ -105,8 +110,8 @@ func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) 
 	}
 
 	account := &models.Account{
-		UserID:        user.ID,
-		StudentEmail:  user.Email, // Email @actvn.edu.vn
+		StudentID:     user.ID,
+		StudentEmail:  user.Email,
 		PersonalEmail: req.PersonalEmail,
 		PasswordHash:  hash,
 		CreatedAt:     time.Now(),
@@ -120,7 +125,7 @@ func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) 
 	return nil
 }
 
-func (s *AuthService) Login(ctx context.Context, email, password string) (*models.Account, error) {
+func (s *authService) Login(ctx context.Context, email, password string) (*models.Account, error) {
 	account, err := s.authRepo.FindByPersonalEmail(ctx, email)
 	if err != nil {
 		return nil, errors.New("tài khoản không tồn tại")
@@ -131,4 +136,8 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*model
 	}
 
 	return account, nil
+}
+
+func (s *authService) GetAllAccounts(ctx context.Context) ([]*models.Account, error) {
+	return s.authRepo.GetAllAccounts(ctx)
 }

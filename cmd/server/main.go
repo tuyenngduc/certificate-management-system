@@ -1,12 +1,13 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/joho/godotenv"
-	"github.com/tuyenngduc/certificate-management-system/internal/handler"
+	"github.com/tuyenngduc/certificate-management-system/internal/handlers"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
 	"github.com/tuyenngduc/certificate-management-system/pkg/database"
@@ -22,9 +23,7 @@ func main() {
 		log.Fatalf("Lỗi khi kết nối MongoDB: %v", err)
 	}
 	db := database.DB
-	seedAdminAccount(db)
 	InitValidator()
-
 	emailSender := utils.NewSMTPSender(
 		os.Getenv("EMAIL_FROM"),
 		os.Getenv("EMAIL_PASSWORD"),
@@ -32,46 +31,31 @@ func main() {
 		os.Getenv("EMAIL_PORT"),
 	)
 
-	// Khởi tạo repository
 	userRepo := repository.NewUserRepository(db)
-	trainingDepartmentRepo := repository.NewTrainingDepartmentRepository(db)
+	userService := service.NewUserService(userRepo)
+	userHandler := handlers.NewUserHandler(userService)
+
 	authRepo := repository.NewAuthRepository(db)
-	accountRepo := repository.NewAccountRepository(db)
-	subjectRepo := repository.NewSubjectRepository(db)
-	scoreRepo := repository.NewScoreRepository(db)
-	certRepo := repository.NewCertificateRepository(db)
-	_ = userRepo.EnsureIndexes(context.Background())
+	authService := service.NewAuthService(authRepo, userRepo, emailSender)
+	authHandler := handlers.NewAuthHandler(authService)
 
-	// Khởi tạo service
-	subjectSvc := service.NewSubjectService(subjectRepo, trainingDepartmentRepo)
-	userSvc := service.NewUserService(userRepo, trainingDepartmentRepo)
-	trainingDepartmentSvc := service.NewTrainingDepartmentService(trainingDepartmentRepo)
-	authSvc := service.NewAuthService(authRepo, userRepo, emailSender)
-	accountSvc := service.NewAccountService(accountRepo)
-	scoreSvc := service.NewScoreService(scoreRepo, userRepo, subjectRepo)
-	certService := service.NewCertificateService(certRepo, *userRepo)
-
-	// Khởi tạo handler
-	subjectHandler := handler.NewSubjectHandler(subjectSvc, trainingDepartmentSvc)
-	userHandler := handler.NewUserHandler(userSvc)
-	trainingDepartmentHandler := handler.NewTrainingDepartmentHandler(trainingDepartmentSvc)
-	authHandler := handler.NewAuthHandler(authSvc)
-	accountHandler := handler.NewAccountHandler(accountSvc)
-	scoreHandler := handler.NewScoreHandler(scoreSvc)
-	certHandler := handler.NewCertificateHandler(certService)
-
-	// Khởi tạo router
 	r := routes.SetupRouter(
 		userHandler,
-		trainingDepartmentHandler,
 		authHandler,
-		accountHandler,
-		subjectHandler,
-		scoreHandler,
-		certHandler,
 	)
 
+	go func() {
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
+		log.Println("Đang tắt server...")
+		if err := database.CloseMongo(); err != nil {
+			log.Printf("Lỗi khi đóng kết nối MongoDB: %v", err)
+		}
+		os.Exit(0)
+	}()
+
 	if err := r.Run(":8080"); err != nil {
-		log.Fatalf("Lỗi khi khởi động server: %v", err)
+		log.Fatalf("Không thể khởi động server: %v", err)
 	}
 }

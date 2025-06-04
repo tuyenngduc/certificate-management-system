@@ -23,7 +23,6 @@ type Certificate struct {
 	BlockchainHash      string    `bson:"blockchain_hash,omitempty" json:"blockchain_hash,omitempty"`
 	BlockchainTimestamp time.Time `bson:"blockchain_timestamp,omitempty" json:"blockchain_timestamp,omitempty"`
 
-	// Chữ ký số
 	Hash              string    `bson:"hash,omitempty" json:"hash,omitempty"`
 	Signature         string    `bson:"signature,omitempty" json:"signature,omitempty"`
 	Signed            bool      `bson:"signed" json:"signed"`
@@ -33,26 +32,4 @@ type Certificate struct {
 
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
-}
-
-type CertificateHashData struct {
-	UserID             string `json:"user_id"`
-	CertificateType    string `json:"certificate_type"`
-	Name               string `json:"name"`
-	Issuer             string `json:"issuer"`
-	IssueDate          string `json:"issue_date"`
-	SerialNumber       string `json:"serial_number"`
-	RegistrationNumber string `json:"registration_number,omitempty"`
-}
-
-func BuildCertificateHashData(cert *Certificate) CertificateHashData {
-	return CertificateHashData{
-		UserID:             cert.UserID.Hex(),
-		CertificateType:    cert.CertificateType,
-		Name:               cert.Name,
-		Issuer:             cert.Issuer,
-		IssueDate:          cert.IssueDate.Format(time.RFC3339),
-		SerialNumber:       cert.SerialNumber,
-		RegistrationNumber: cert.RegistrationNumber,
-	}
 }

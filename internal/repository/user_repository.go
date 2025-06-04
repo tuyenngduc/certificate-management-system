@@ -2,8 +2,7 @@ package repository
 
 import (
 	"context"
-	"errors"
-	"time"
+	"log"
 
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,211 +11,146 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type IUserRepository interface {
-	Insert(ctx context.Context, user *models.User) error
-	GetByID(ctx context.Context, id primitive.ObjectID) (*models.User, error)
+type UserRepository interface {
+	Create(ctx context.Context, user *models.User) error
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
-	FindByNationalID(ctx context.Context, nationalID string) (*models.User, error)
-	FindByStudentID(ctx context.Context, id string) (*models.User, error)
-	FindByPhoneNumber(ctx context.Context, phone string) (*models.User, error)
-	EnsureIndexes(ctx context.Context) error
-	FindAll(ctx context.Context) ([]*models.User, error)
-	Search(ctx context.Context, id, fullName, email, nationalID, phone, studentID string, page, pageSize int) ([]*models.User, int64, error)
-	GetUsersByClassID(ctx context.Context, classID primitive.ObjectID) ([]*models.User, error)
-	Update(ctx context.Context, id primitive.ObjectID, update bson.M) error
-	Delete(ctx context.Context, id primitive.ObjectID) (bool, error)
-	GetByCode(ctx context.Context, code string) (*models.User, error)
+	GetUserByID(ctx context.Context, id primitive.ObjectID) (*models.User, error)
+	GetAllUsers(ctx context.Context) ([]*models.User, error)
+	UpdateUser(ctx context.Context, id primitive.ObjectID, update bson.M) error
+	SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error)
+	DeleteUser(ctx context.Context, id primitive.ObjectID) error
+	FindByStudentID(ctx context.Context, studentID string) (*models.User, error)
 }
-
 type userRepository struct {
-	collection *mongo.Collection
+	col *mongo.Collection
 }
 
-func NewUserRepository(db *mongo.Database) IUserRepository {
-	return &userRepository{
-		collection: db.Collection("users"),
+func NewUserRepository(db *mongo.Database) UserRepository {
+	col := db.Collection("users")
+	repo := &userRepository{col: col}
+	if err := repo.initIndexes(context.Background()); err != nil {
+		log.Fatal("Cannot create indexes:", err)
 	}
+	return repo
 }
-
-func (r *userRepository) Insert(ctx context.Context, user *models.User) error {
-	_, err := r.collection.InsertOne(ctx, user)
-	return err
-}
-func (r *userRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
-	var user models.User
-	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
-	if err == mongo.ErrNoDocuments {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
-	var user models.User
-	err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (r *userRepository) FindByNationalID(ctx context.Context, nationalID string) (*models.User, error) {
-	var user models.User
-	err := r.collection.FindOne(ctx, bson.M{"nationalId": nationalID}).Decode(&user)
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-func (r *userRepository) FindByStudentID(ctx context.Context, id string) (*models.User, error) {
-	var user models.User
-	err := r.collection.FindOne(ctx, bson.M{"studentId": id}).Decode(&user)
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (r *userRepository) FindByPhoneNumber(ctx context.Context, phone string) (*models.User, error) {
-	var user models.User
-	err := r.collection.FindOne(ctx, bson.M{"phoneNumber": phone}).Decode(&user)
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (r *userRepository) EnsureIndexes(ctx context.Context) error {
-	indexes := []mongo.IndexModel{
-		{
-			Keys:    bson.D{{Key: "email", Value: 1}},
-			Options: options.Index().SetUnique(true),
-		},
-		{
-			Keys:    bson.D{{Key: "nationalId", Value: 1}},
-			Options: options.Index().SetUnique(true).SetSparse(true),
-		},
-		{
-			Keys:    bson.D{{Key: "phoneNumber", Value: 1}},
-			Options: options.Index().SetUnique(true).SetSparse(true),
-		},
-		{
-			Keys:    bson.D{{Key: "studentId", Value: 1}},
-			Options: options.Index().SetUnique(true).SetSparse(true),
-		},
-	}
-	_, err := r.collection.Indexes().CreateMany(ctx, indexes)
-	return err
-}
-
-func (r *userRepository) FindAll(ctx context.Context) ([]*models.User, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{})
+func (r *userRepository) GetAllUsers(ctx context.Context) ([]*models.User, error) {
+	cursor, err := r.col.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
 	var users []*models.User
-	for cursor.Next(ctx) {
-		var user models.User
-		if err := cursor.Decode(&user); err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, err
 	}
 	return users, nil
 }
-func (r *userRepository) Search(ctx context.Context, id, fullName, email, nationalID, phone, studentID string, page, pageSize int) ([]*models.User, int64, error) {
+func (r *userRepository) GetUserByID(ctx context.Context, id primitive.ObjectID) (*models.User, error) {
+	var user models.User
+	err := r.col.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error) {
 	filter := bson.M{}
-	if id != "" {
-		objID, err := primitive.ObjectIDFromHex(id)
-		if err == nil {
-			filter["_id"] = objID
-		}
+	if params.StudentID != "" {
+		filter["studentId"] = bson.M{"$regex": params.StudentID, "$options": "i"}
 	}
-	if fullName != "" {
-		filter["fullName"] = bson.M{"$regex": fullName, "$options": "i"}
+	if params.FullName != "" {
+		filter["fullName"] = bson.M{"$regex": params.FullName, "$options": "i"}
 	}
-	if email != "" {
-		filter["email"] = email
+	if params.Email != "" {
+		filter["email"] = bson.M{"$regex": params.Email, "$options": "i"}
 	}
-	if nationalID != "" {
-		filter["nationalId"] = nationalID
+	if params.Class != "" {
+		filter["classId"] = bson.M{"$regex": params.Class, "$options": "i"}
 	}
-	if phone != "" {
-		filter["phoneNumber"] = phone
-	}
-	if studentID != "" {
-		filter["studentId"] = studentID
+	if params.Faculty != "" {
+		filter["facultyId"] = bson.M{"$regex": params.Faculty, "$options": "i"}
 	}
 
-	total, _ := r.collection.CountDocuments(ctx, filter)
-	opts := options.Find().
-		SetSkip(int64((page - 1) * pageSize)).
-		SetLimit(int64(pageSize))
+	skip := int64((params.Page - 1) * params.PageSize)
+	limit := int64(params.PageSize)
 
-	cursor, err := r.collection.Find(ctx, filter, opts)
+	total, err := r.col.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	opts := options.Find().SetSkip(skip).SetLimit(limit)
+	cursor, err := r.col.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
 	var users []*models.User
-	for cursor.Next(ctx) {
-		var user models.User
-		if err := cursor.Decode(&user); err != nil {
-			return nil, 0, err
-		}
-		users = append(users, &user)
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, 0, err
 	}
 	return users, total, nil
 }
-func (r *userRepository) GetUsersByClassID(ctx context.Context, classID primitive.ObjectID) ([]*models.User, error) {
-	filter := bson.M{"classId": classID}
-	cursor, err := r.collection.Find(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
 
-	var users []*models.User
-	for cursor.Next(ctx) {
-		var user models.User
-		if err := cursor.Decode(&user); err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-	return users, nil
-}
-func (r *userRepository) Update(ctx context.Context, id primitive.ObjectID, update bson.M) error {
-	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
+func (r *userRepository) Create(ctx context.Context, user *models.User) error {
+	_, err := r.col.InsertOne(ctx, user)
 	return err
 }
-
-func (r *userRepository) Delete(ctx context.Context, id primitive.ObjectID) (bool, error) {
-	res, err := r.collection.DeleteOne(ctx, bson.M{"_id": id})
+func (r *userRepository) UpdateUser(ctx context.Context, id primitive.ObjectID, update bson.M) error {
+	result, err := r.col.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
 	if err != nil {
-		return false, err
+		return err
 	}
-	return res.DeletedCount > 0, nil
+	if result.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
 }
 
-func (r *userRepository) GetByCode(ctx context.Context, code string) (*models.User, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	filter := bson.M{"studentId": code}
+func (r *userRepository) initIndexes(ctx context.Context) error {
+	studentIDIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "studentId", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+	emailIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "email", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+	_, err := r.col.Indexes().CreateMany(ctx, []mongo.IndexModel{studentIDIndex, emailIndex})
+	return err
+}
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
-	err := r.collection.FindOne(ctx, filter).Decode(&user)
+	err := r.col.FindOne(ctx, bson.M{"email": email}).Decode(&user)
 	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
+		if err == mongo.ErrNoDocuments {
 			return nil, nil
 		}
 		return nil, err
 	}
 	return &user, nil
+}
+func (r *userRepository) FindByStudentID(ctx context.Context, studentID string) (*models.User, error) {
+	var user models.User
+	err := r.col.FindOne(ctx, bson.M{"studentId": studentID}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *userRepository) DeleteUser(ctx context.Context, id primitive.ObjectID) error {
+	result, err := r.col.DeleteOne(ctx, bson.M{"_id": id})
+	if err != nil {
+		return err
+	}
+	if result.DeletedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
 }
