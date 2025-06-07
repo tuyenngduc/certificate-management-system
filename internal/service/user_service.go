@@ -8,6 +8,7 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
+	"github.com/tuyenngduc/certificate-management-system/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -16,7 +17,7 @@ type UserService interface {
 	GetAllUsers(ctx context.Context) ([]models.UserResponse, error)
 	GetUserByID(ctx context.Context, id primitive.ObjectID) (*models.UserResponse, error)
 	SearchUsers(ctx context.Context, params models.SearchUserParams) ([]models.UserResponse, int64, error)
-	CreateUser(ctx context.Context, req *models.CreateUserRequest) (*models.UserResponse, error)
+	CreateUser(ctx context.Context, claims *utils.CustomClaims, req *models.CreateUserRequest) (*models.UserResponse, error)
 	DeleteUser(ctx context.Context, id primitive.ObjectID) error
 	UpdateUser(ctx context.Context, id primitive.ObjectID, req models.UpdateUserRequest) error
 }
@@ -143,9 +144,13 @@ func (s *userService) SearchUsers(ctx context.Context, params models.SearchUserP
 	return responses, total, nil
 }
 
-func (s *userService) CreateUser(ctx context.Context, req *models.CreateUserRequest) (*models.UserResponse, error) {
-	// Kiểm tra mã sinh viên trùng
-	exists, err := s.userRepo.ExistsByStudentCode(ctx, req.StudentCode)
+func (s *userService) CreateUser(ctx context.Context, claims *utils.CustomClaims, req *models.CreateUserRequest) (*models.UserResponse, error) {
+	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
+	if err != nil {
+		return nil, common.ErrInvalidToken
+	}
+
+	exists, err := s.userRepo.ExistsByStudentCodeAndUniversityID(ctx, req.StudentCode, universityID)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +158,6 @@ func (s *userService) CreateUser(ctx context.Context, req *models.CreateUserRequ
 		return nil, common.ErrStudentIDExists
 	}
 
-	// Kiểm tra Email trùng
 	exists, err = s.userRepo.ExistsByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, err
@@ -162,25 +166,26 @@ func (s *userService) CreateUser(ctx context.Context, req *models.CreateUserRequ
 		return nil, common.ErrEmailExists
 	}
 
-	// Tìm University theo code
-	university, err := s.universityRepo.FindByCode(ctx, req.UniversityCode)
+	// Lấy University từ ID
+	university, err := s.universityRepo.FindByID(ctx, universityID)
 	if err != nil || university == nil {
 		return nil, common.ErrUniversityNotFound
 	}
 
-	// Tìm Faculty theo code và university_id
-	faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, req.FacultyCode, university.ID)
+	// Tìm Faculty theo code + university_id
+	faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, req.FacultyCode, universityID)
 	if err != nil || faculty == nil {
 		return nil, common.ErrFacultyNotFound
 	}
 
+	// Tạo user
 	user := &models.User{
 		ID:           primitive.NewObjectID(),
 		StudentCode:  req.StudentCode,
 		FullName:     req.FullName,
 		Email:        req.Email,
 		FacultyID:    faculty.ID,
-		UniversityID: university.ID,
+		UniversityID: universityID,
 		Course:       req.Course,
 		Status:       "Đang học",
 		CreatedAt:    time.Now(),
@@ -191,6 +196,7 @@ func (s *userService) CreateUser(ctx context.Context, req *models.CreateUserRequ
 		return nil, err
 	}
 
+	// Trả về response
 	resp := &models.UserResponse{
 		ID:             user.ID,
 		StudentCode:    user.StudentCode,
@@ -209,17 +215,24 @@ func (s *userService) CreateUser(ctx context.Context, req *models.CreateUserRequ
 
 func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req models.UpdateUserRequest) error {
 	update := bson.M{}
+	claimsVal := ctx.Value("claims")
+	claims, ok := claimsVal.(*utils.CustomClaims)
+	if !ok {
+		return common.ErrUnauthorized
+	}
 
-	// Check trùng mã sinh viên
+	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
+	if err != nil {
+		return common.ErrInvalidToken
+	}
 	if req.StudentCode != "" {
-		exist, err := s.userRepo.FindByStudentCode(ctx, req.StudentCode)
+		exist, err := s.userRepo.FindByStudentCodeAndUniversityID(ctx, req.StudentCode, universityID)
 		if err == nil && exist != nil && exist.ID != id {
 			return common.ErrStudentIDExists
 		}
 		update["student_code"] = req.StudentCode
 	}
 
-	// Check trùng email
 	if req.Email != "" {
 		exist, err := s.userRepo.FindByEmail(ctx, req.Email)
 		if err == nil && exist != nil && exist.ID != id {
@@ -227,8 +240,6 @@ func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req
 		}
 		update["email"] = req.Email
 	}
-
-	// Cập nhật các trường thông thường
 	if req.FullName != "" {
 		update["full_name"] = req.FullName
 	}
@@ -238,29 +249,16 @@ func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req
 	if req.Status != "" {
 		update["status"] = req.Status
 	}
-
-	// Tìm Faculty theo code nếu có yêu cầu
-	if req.FacultyCode != "" && req.UniversityCode != "" {
-		university, err := s.universityRepo.FindByCode(ctx, req.UniversityCode)
-		if err != nil || university == nil {
-			return common.ErrUniversityNotFound
-		}
-
-		faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, req.FacultyCode, university.ID)
+	if req.FacultyCode != "" {
+		faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, req.FacultyCode, universityID)
 		if err != nil || faculty == nil {
 			return common.ErrFacultyNotFound
 		}
-
 		update["faculty_id"] = faculty.ID
-		update["university_id"] = university.ID
-	} else if req.FacultyCode != "" || req.UniversityCode != "" {
-		return errors.New("phải cung cấp cả faculty_code và university_code")
 	}
-
-	// Thêm trường updatedAt
 	update["updated_at"] = time.Now()
 
-	if len(update) == 1 {
+	if len(update) == 1 { // chỉ có updated_at
 		return errors.New("không có trường nào để cập nhật")
 	}
 

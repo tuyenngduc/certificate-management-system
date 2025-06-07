@@ -7,15 +7,18 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
+	"github.com/tuyenngduc/certificate-management-system/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type FacultyService interface {
 	GetAllFaculties(ctx context.Context, universityID primitive.ObjectID) ([]*models.Faculty, error)
-	CreateFaculty(ctx context.Context, req *models.CreateFacultyRequest, universityID primitive.ObjectID) (*models.Faculty, error)
 	UpdateFaculty(ctx context.Context, idStr string, req *models.UpdateFacultyRequest) (*models.Faculty, error)
 	DeleteFaculty(ctx context.Context, idStr string) error
+	GetFacultyByID(ctx context.Context, id primitive.ObjectID) (*models.FacultyResponse, error)
+	CreateFaculty(ctx context.Context, claims *utils.CustomClaims, req *models.CreateFacultyRequest) (*models.FacultyResponse, error)
 }
 
 type facultyService struct {
@@ -30,13 +33,13 @@ func NewFacultyService(universityRepo repository.UniversityRepository, facultyRe
 	}
 }
 
-func (s *facultyService) CreateFaculty(ctx context.Context, req *models.CreateFacultyRequest, universityID primitive.ObjectID) (*models.Faculty, error) {
-	university, err := s.universityRepo.FindByID(ctx, universityID)
-	if err != nil || university == nil {
-		return nil, common.ErrUniversityNotFound
+func (s *facultyService) CreateFaculty(ctx context.Context, claims *utils.CustomClaims, req *models.CreateFacultyRequest) (*models.FacultyResponse, error) {
+	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
+	if err != nil {
+		return nil, common.ErrInvalidToken
 	}
 
-	faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, req.FacultyCode, university.ID)
+	faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, req.FacultyCode, universityID)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +51,7 @@ func (s *facultyService) CreateFaculty(ctx context.Context, req *models.CreateFa
 		ID:           primitive.NewObjectID(),
 		FacultyCode:  req.FacultyCode,
 		FacultyName:  req.FacultyName,
-		UniversityID: university.ID,
+		UniversityID: universityID,
 		CreatedAt:    time.Now(),
 	}
 
@@ -56,11 +59,35 @@ func (s *facultyService) CreateFaculty(ctx context.Context, req *models.CreateFa
 		return nil, err
 	}
 
-	return faculty, nil
+	return &models.FacultyResponse{
+		ID:          faculty.ID,
+		FacultyCode: faculty.FacultyCode,
+		FacultyName: faculty.FacultyName,
+		CreatedAt:   faculty.CreatedAt.Format(time.RFC3339),
+	}, nil
 }
+
 func (s *facultyService) GetAllFaculties(ctx context.Context, universityID primitive.ObjectID) ([]*models.Faculty, error) {
 	return s.facultyRepo.FindAllByUniversityID(ctx, universityID)
 }
+func (s *facultyService) GetFacultyByID(ctx context.Context, id primitive.ObjectID) (*models.FacultyResponse, error) {
+	faculty, err := s.facultyRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if faculty == nil {
+		return nil, mongo.ErrNoDocuments
+	}
+
+	resp := &models.FacultyResponse{
+		ID:          faculty.ID,
+		FacultyCode: faculty.FacultyCode,
+		FacultyName: faculty.FacultyName,
+		CreatedAt:   faculty.CreatedAt.Format(time.RFC3339),
+	}
+	return resp, nil
+}
+
 func (s *facultyService) UpdateFaculty(ctx context.Context, idStr string, req *models.UpdateFacultyRequest) (*models.Faculty, error) {
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {

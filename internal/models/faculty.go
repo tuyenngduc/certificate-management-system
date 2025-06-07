@@ -19,11 +19,10 @@ type CreateFacultyRequest struct {
 	FacultyName string `json:"faculty_name" binding:"required"`
 }
 type FacultyResponse struct {
-	ID           primitive.ObjectID `json:"id"`
-	FacultyCode  string             `json:"faculty_code"`
-	FacultyName  string             `json:"faculty_name"`
-	UniversityID primitive.ObjectID `json:"university_id"`
-	CreatedAt    string             `json:"created_at"`
+	ID          primitive.ObjectID `json:"id"`
+	FacultyCode string             `json:"faculty_code"`
+	FacultyName string             `json:"faculty_name"`
+	CreatedAt   string             `json:"created_at"`
 }
 type UpdateFacultyRequest struct {
 	FacultyCode string `json:"faculty_code" binding:"required"`

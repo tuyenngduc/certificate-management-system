@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
 	"github.com/tuyenngduc/certificate-management-system/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type FacultyHandler struct {
@@ -31,25 +33,18 @@ func (h *FacultyHandler) CreateFaculty(c *gin.Context) {
 		return
 	}
 
-	claims, exists := c.Get("claims")
+	val, exists := c.Get("claims")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không tìm thấy thông tin xác thực"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Bạn chưa đăng nhập hoặc token không hợp lệ"})
 		return
 	}
-
-	myClaims, ok := claims.(*utils.CustomClaims)
+	claims, ok := val.(*utils.CustomClaims)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Thông tin xác thực không hợp lệ"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
 		return
 	}
 
-	universityID, err := primitive.ObjectIDFromHex(myClaims.UniversityID)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "university_id trong token không hợp lệ"})
-		return
-	}
-
-	faculty, err := h.facultyService.CreateFaculty(c.Request.Context(), &req, universityID)
+	resp, err := h.facultyService.CreateFaculty(c.Request.Context(), claims, &req)
 	if err != nil {
 		switch err {
 		case common.ErrUniversityNotFound:
@@ -62,8 +57,9 @@ func (h *FacultyHandler) CreateFaculty(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": faculty})
+	c.JSON(http.StatusCreated, gin.H{"data": resp})
 }
+
 func (h *FacultyHandler) GetAllFaculties(c *gin.Context) {
 	claims, exists := c.Get("claims")
 	if !exists {
@@ -87,15 +83,34 @@ func (h *FacultyHandler) GetAllFaculties(c *gin.Context) {
 	var resp []models.FacultyResponse
 	for _, f := range faculties {
 		resp = append(resp, models.FacultyResponse{
-			ID:           f.ID,
-			FacultyCode:  f.FacultyCode,
-			FacultyName:  f.FacultyName,
-			UniversityID: f.UniversityID,
-			CreatedAt:    f.CreatedAt.Format(time.RFC3339),
+			ID:          f.ID,
+			FacultyCode: f.FacultyCode,
+			FacultyName: f.FacultyName,
+			CreatedAt:   f.CreatedAt.Format(time.RFC3339),
 		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": resp})
+}
+func (h *FacultyHandler) GetFacultyByID(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	faculty, err := h.facultyService.GetFacultyByID(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Khoa không tồn tại"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": faculty})
 }
 
 func (h *FacultyHandler) UpdateFaculty(c *gin.Context) {

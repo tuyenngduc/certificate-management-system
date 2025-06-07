@@ -72,6 +72,7 @@ func SetupRouter(
 	facultyGroup.GET("", facultyHandler.GetAllFaculties)
 	facultyGroup.PUT("/:id", facultyHandler.UpdateFaculty)
 	facultyGroup.DELETE("/:id", facultyHandler.DeleteFaculty)
+	facultyGroup.GET("/:id", facultyHandler.GetFacultyByID)
 
 	return r
 }

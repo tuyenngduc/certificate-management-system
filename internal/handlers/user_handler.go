@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
+	"github.com/tuyenngduc/certificate-management-system/utils"
 	"github.com/xuri/excelize/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -77,6 +79,17 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
+	val, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Bạn chưa đăng nhập hoặc token không hợp lệ"})
+		return
+	}
+	claims, ok := val.(*utils.CustomClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
+		return
+	}
+
 	var req models.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if errs, ok := common.ParseValidationError(err); ok {
@@ -87,19 +100,25 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.userService.CreateUser(c.Request.Context(), &req)
+	// Truyền thêm `claims` vào service
+	resp, err := h.userService.CreateUser(c.Request.Context(), claims, &req)
 	if err != nil {
 		switch {
+		case errors.Is(err, common.ErrUnauthorized):
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Bạn chưa đăng nhập hoặc token không hợp lệ"})
+		case errors.Is(err, common.ErrInvalidToken):
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
 		case errors.Is(err, common.ErrStudentIDExists):
 			c.JSON(http.StatusConflict, gin.H{"error": "Mã sinh viên đã tồn tại"})
 		case errors.Is(err, common.ErrEmailExists):
 			c.JSON(http.StatusConflict, gin.H{"error": "Email đã tồn tại"})
 		case errors.Is(err, common.ErrUniversityNotFound):
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Mã trường không tồn tại"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Không tìm thấy trường đại học"})
 		case errors.Is(err, common.ErrFacultyNotFound):
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Mã khoa không tồn tại hoặc không thuộc trường"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Không tìm thấy khoa hoặc khoa không thuộc trường"})
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống, vui lòng thử lại"})
+			fmt.Printf("CreateUser unexpected error: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống, vui lòng thử lại sau"})
 		}
 		return
 	}
@@ -173,6 +192,17 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 }
 
 func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
+	val, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Bạn chưa đăng nhập hoặc token không hợp lệ"})
+		return
+	}
+	claims, ok := val.(*utils.CustomClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
+		return
+	}
+
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Vui lòng upload file Excel"})
@@ -208,7 +238,7 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 
 	for i, row := range rows {
 		if i == 0 {
-			continue
+			continue // Bỏ qua dòng tiêu đề
 		}
 
 		result := map[string]interface{}{"row": i + 1}
@@ -227,13 +257,21 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 			Course:      row[4],
 		}
 
-		_, err := h.userService.CreateUser(c.Request.Context(), user)
+		_, err := h.userService.CreateUser(c.Request.Context(), claims, user)
 		if err != nil {
 			switch {
+			case errors.Is(err, common.ErrUnauthorized):
+				result["error"] = "Bạn chưa đăng nhập hoặc token không hợp lệ"
+			case errors.Is(err, common.ErrInvalidToken):
+				result["error"] = "Token không hợp lệ"
 			case errors.Is(err, common.ErrStudentIDExists):
 				result["error"] = "Mã sinh viên đã tồn tại"
 			case errors.Is(err, common.ErrEmailExists):
 				result["error"] = "Email đã tồn tại"
+			case errors.Is(err, common.ErrFacultyNotFound):
+				result["error"] = "Không tìm thấy khoa"
+			case errors.Is(err, common.ErrUniversityNotFound):
+				result["error"] = "Không tìm thấy trường đại học"
 			default:
 				result["error"] = err.Error()
 			}

@@ -20,12 +20,11 @@ type User struct {
 }
 
 type CreateUserRequest struct {
-	StudentCode    string `json:"student_code" binding:"required"`
-	FullName       string `json:"full_name" binding:"required"`
-	Email          string `json:"email" binding:"required,email"`
-	FacultyCode    string `json:"faculty_code" binding:"required"`
-	UniversityCode string `json:"university_code" binding:"required"`
-	Course         string `json:"course" binding:"required,courseyear"`
+	StudentCode string `json:"student_code" binding:"required"`
+	FullName    string `json:"full_name" binding:"required"`
+	Email       string `json:"email" binding:"required,email"`
+	FacultyCode string `json:"faculty_code" binding:"required"`
+	Course      string `json:"course" binding:"required,courseyear"`
 }
 
 type UserResponse struct {
@@ -51,11 +50,10 @@ type SearchUserParams struct {
 }
 
 type UpdateUserRequest struct {
-	StudentCode    string `json:"student_code" binding:"omitempty"`
-	FullName       string `json:"full_name" binding:"omitempty"`
-	Email          string `json:"email" binding:"omitempty,email"`
-	FacultyCode    string `json:"faculty_code" binding:"omitempty"`
-	UniversityCode string `json:"university_code" binding:"omitempty"`
-	Course         string `json:"course" binding:"omitempty"`
-	Status         string `json:"status" binding:"omitempty"`
+	StudentCode string `json:"student_code" binding:"omitempty"`
+	FullName    string `json:"full_name" binding:"omitempty"`
+	Email       string `json:"email" binding:"omitempty,email"`
+	FacultyCode string `json:"faculty_code" binding:"omitempty"`
+	Course      string `json:"course" binding:"omitempty"`
+	Status      string `json:"status" binding:"omitempty"`
 }

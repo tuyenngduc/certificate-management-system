@@ -20,8 +20,9 @@ type UserRepository interface {
 	SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error)
 	DeleteUser(ctx context.Context, id primitive.ObjectID) error
 	FindByStudentCode(ctx context.Context, studentID string) (*models.User, error)
-	ExistsByStudentCode(ctx context.Context, studentID string) (bool, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	ExistsByStudentCodeAndUniversityID(ctx context.Context, studentCode string, universityID primitive.ObjectID) (bool, error)
+	FindByStudentCodeAndUniversityID(ctx context.Context, studentCode string, universityID primitive.ObjectID) (*models.User, error)
 }
 type userRepository struct {
 	col *mongo.Collection
@@ -155,8 +156,12 @@ func (r *userRepository) DeleteUser(ctx context.Context, id primitive.ObjectID) 
 	return nil
 }
 
-func (r *userRepository) ExistsByStudentCode(ctx context.Context, studentID string) (bool, error) {
-	count, err := r.col.CountDocuments(ctx, bson.M{"student_code": studentID})
+func (r *userRepository) ExistsByStudentCodeAndUniversityID(ctx context.Context, studentCode string, universityID primitive.ObjectID) (bool, error) {
+	filter := bson.M{
+		"student_code":  studentCode,
+		"university_id": universityID,
+	}
+	count, err := r.col.CountDocuments(ctx, filter)
 	if err != nil {
 		return false, err
 	}
@@ -169,4 +174,19 @@ func (r *userRepository) ExistsByEmail(ctx context.Context, email string) (bool,
 		return false, err
 	}
 	return count > 0, nil
+}
+func (r *userRepository) FindByStudentCodeAndUniversityID(ctx context.Context, studentCode string, universityID primitive.ObjectID) (*models.User, error) {
+	filter := bson.M{
+		"student_code":  studentCode,
+		"university_id": universityID,
+	}
+	var user models.User
+	err := r.col.FindOne(ctx, filter).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
 }

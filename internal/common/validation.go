@@ -26,7 +26,7 @@ func TranslateError(field, tag string) string {
 		},
 		"Course": {
 			"required":   "Khóa học không được để trống",
-			"courseyear": "Khóa học phải có định dạng NĂM-NĂM, ví dụ 2022-2026",
+			"courseyear": "Khóa học phải có định dạng năm, ví dụ 2021",
 		},
 		"PersonalEmail": {
 			"required": "Email cá nhân không được để trống",

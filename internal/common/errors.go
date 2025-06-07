@@ -3,6 +3,10 @@ package common
 import "errors"
 
 var (
+	//auth
+	ErrUnauthorized = errors.New("unauthorized")
+	ErrInvalidToken = errors.New("invalid_token")
+
 	ErrNoFieldsToUpdate               = errors.New("no_fields_to_update")
 	ErrUserNotExisted                 = errors.New("user_not_exists")
 	ErrInvalidUserID                  = errors.New("invalid_user_id")
