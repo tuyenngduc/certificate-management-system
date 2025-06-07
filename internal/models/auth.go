@@ -57,3 +57,8 @@ type LoginResponse struct {
 	Token string `json:"token"`
 	Role  string `json:"role"`
 }
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
+}

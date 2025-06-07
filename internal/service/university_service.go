@@ -17,7 +17,7 @@ type UniversityService interface {
 	CreateUniversity(ctx context.Context, req *models.CreateUniversityRequest) error
 	ApproveOrRejectUniversity(ctx context.Context, idStr string, action string) error
 	GetAllUniversities(ctx context.Context) ([]*models.University, error)
-	GetApprovedUniversities(ctx context.Context) ([]*models.University, error)
+	GetUniversitiesByStatus(ctx context.Context, status string) ([]*models.University, error)
 }
 
 type universityService struct {
@@ -78,8 +78,15 @@ func (s *universityService) ApproveOrRejectUniversity(ctx context.Context, idStr
 
 	switch action {
 	case "approve":
+		if university.Status == "approved" {
+			return common.ErrUniversityAlreadyApproved
+		}
 		if err := s.universityRepo.UpdateStatus(ctx, objID, "approved"); err != nil {
 			return err
+		}
+		existingAccount, _ := s.authRepo.FindByPersonalEmail(ctx, university.EmailDomain)
+		if existingAccount != nil {
+			return common.ErrAccountUniversityAlreadyExists
 		}
 
 		// Tạo mật khẩu ngẫu nhiên
@@ -112,9 +119,9 @@ Thông tin tài khoản:
 
 Vui lòng đăng nhập và thay đổi mật khẩu ngay sau lần đầu sử dụng.
 
-Trân trọng.`, university.UniversityName, account.StudentEmail, rawPassword)
+Trân trọng.`, university.UniversityName, account.PersonalEmail, rawPassword)
 
-		_ = s.emailSender.SendEmail(account.StudentEmail, "Tài khoản quản trị trường", emailBody)
+		_ = s.emailSender.SendEmail(account.PersonalEmail, "Tài khoản quản trị trường", emailBody)
 		return nil
 
 	case "reject":
@@ -128,6 +135,6 @@ Trân trọng.`, university.UniversityName, account.StudentEmail, rawPassword)
 func (s *universityService) GetAllUniversities(ctx context.Context) ([]*models.University, error) {
 	return s.universityRepo.GetAllUniversities(ctx)
 }
-func (s *universityService) GetApprovedUniversities(ctx context.Context) ([]*models.University, error) {
-	return s.universityRepo.GetApprovedUniversities(ctx)
+func (s *universityService) GetUniversitiesByStatus(ctx context.Context, status string) ([]*models.University, error) {
+	return s.universityRepo.GetUniversitiesByStatus(ctx, status)
 }

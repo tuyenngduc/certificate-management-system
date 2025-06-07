@@ -10,6 +10,7 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
 	"github.com/tuyenngduc/certificate-management-system/utils"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type AuthHandler struct {
@@ -137,4 +138,48 @@ func (h *AuthHandler) DeleteAccount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Xóa tài khoản thành công"})
+}
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	var req models.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if errs, ok := common.ParseValidationError(err); ok {
+			c.JSON(400, gin.H{"errors": errs})
+			return
+		}
+		c.JSON(400, gin.H{"error": "Dữ liệu không hợp lệ"})
+		return
+	}
+
+	claimsRaw, exists := c.Get("claims")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Không xác thực"})
+		return
+	}
+
+	claims, ok := claimsRaw.(*utils.CustomClaims)
+	if !ok {
+		c.JSON(401, gin.H{"error": "Dữ liệu xác thực không hợp lệ"})
+		return
+	}
+
+	accountID, err := primitive.ObjectIDFromHex(claims.AccountID)
+	if err != nil {
+		c.JSON(401, gin.H{"error": "ID tài khoản không hợp lệ"})
+		return
+	}
+
+	err = h.authService.ChangePassword(c.Request.Context(), accountID, req.OldPassword, req.NewPassword)
+	if err != nil {
+		switch err {
+		case common.ErrAccountNotFound:
+			c.JSON(404, gin.H{"error": "Không tìm thấy tài khoản"})
+		case common.ErrInvalidOldPassword:
+			c.JSON(400, gin.H{"error": "Mật khẩu cũ không đúng"})
+		default:
+			c.JSON(500, gin.H{"error": "Lỗi hệ thống"})
+		}
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Đổi mật khẩu thành công"})
 }

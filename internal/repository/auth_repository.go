@@ -6,6 +6,7 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -18,6 +19,8 @@ type AuthRepository interface {
 	FindByPersonalEmail(ctx context.Context, email string) (*models.Account, error)
 	GetAllAccounts(ctx context.Context) ([]*models.Account, error)
 	DeleteAccountByEmail(ctx context.Context, email string) error
+	UpdatePassword(ctx context.Context, accountID primitive.ObjectID, newHash string) error
+	FindByID(ctx context.Context, id primitive.ObjectID) (*models.Account, error)
 }
 
 type authRepository struct {
@@ -89,4 +92,23 @@ func (r *authRepository) DeleteAccountByEmail(ctx context.Context, email string)
 	}
 
 	return nil
+}
+func (r *authRepository) UpdatePassword(ctx context.Context, accountID primitive.ObjectID, newHash string) error {
+	filter := bson.M{"_id": accountID}
+	update := bson.M{"$set": bson.M{"password_hash": newHash}}
+	_, err := r.col.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *authRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*models.Account, error) {
+	filter := bson.M{"_id": id}
+	var acc models.Account
+	err := r.col.FindOne(ctx, filter).Decode(&acc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &acc, nil
 }

@@ -70,6 +70,11 @@ func TranslateError(field, tag string) string {
 			"required": "Hành động không được để trống",
 			"oneof":    "Hành động thực hiện approve hoặc reject",
 		},
+		"NewPassword": {
+			"required": "Mật khẩu mới không được để trống"},
+		"OldPassword": {
+			"required": "Yêu cầu nhập mật khẩu cũ",
+		},
 	}
 
 	if fieldMsg, ok := messages[field]; ok {

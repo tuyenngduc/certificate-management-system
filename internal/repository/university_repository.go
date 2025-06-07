@@ -17,7 +17,7 @@ type UniversityRepository interface {
 	DeleteByID(ctx context.Context, id primitive.ObjectID) error
 	CreateUniversity(ctx context.Context, uni *models.University) error
 	GetAllUniversities(ctx context.Context) ([]*models.University, error)
-	GetApprovedUniversities(ctx context.Context) ([]*models.University, error)
+	GetUniversitiesByStatus(ctx context.Context, status string) ([]*models.University, error)
 }
 
 type universityRepository struct {
@@ -99,8 +99,12 @@ func (r *universityRepository) GetAllUniversities(ctx context.Context) ([]*model
 	}
 	return universities, nil
 }
-func (r *universityRepository) GetApprovedUniversities(ctx context.Context) ([]*models.University, error) {
-	filter := bson.M{"status": "approved"}
+func (r *universityRepository) GetUniversitiesByStatus(ctx context.Context, status string) ([]*models.University, error) {
+	filter := bson.M{}
+	if status != "" {
+		filter["status"] = status
+	}
+
 	cursor, err := r.col.Find(ctx, filter)
 	if err != nil {
 		return nil, err

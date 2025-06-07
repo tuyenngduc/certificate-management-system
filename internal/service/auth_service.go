@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
 	"github.com/tuyenngduc/certificate-management-system/utils"
@@ -20,6 +21,7 @@ type AuthService interface {
 	Login(ctx context.Context, email, password string) (*models.Account, error)
 	GetAllAccounts(ctx context.Context) ([]*models.Account, error)
 	DeleteAccountByEmail(ctx context.Context, email string) error
+	ChangePassword(ctx context.Context, accountID primitive.ObjectID, oldPass, newPass string) error
 }
 
 type authService struct {
@@ -148,4 +150,21 @@ func (s *authService) DeleteAccountByEmail(ctx context.Context, email string) er
 		return err
 	}
 	return nil
+}
+
+func (s *authService) ChangePassword(ctx context.Context, accountID primitive.ObjectID, oldPass, newPass string) error {
+	account, err := s.authRepo.FindByID(ctx, accountID)
+	if err != nil || account == nil {
+		return common.ErrAccountNotFound
+	}
+
+	if !utils.CheckPasswordHash(oldPass, account.PasswordHash) {
+		return common.ErrInvalidOldPassword
+	}
+
+	newHash, err := utils.HashPassword(newPass)
+	if err != nil {
+		return err
+	}
+	return s.authRepo.UpdatePassword(ctx, accountID, newHash)
 }
