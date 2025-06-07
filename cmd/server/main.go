@@ -24,6 +24,8 @@ func main() {
 	}
 	db := database.DB
 	InitValidator()
+	seedAdminAccount(db)
+
 	emailSender := utils.NewSMTPSender(
 		os.Getenv("EMAIL_FROM"),
 		os.Getenv("EMAIL_PASSWORD"),
@@ -39,6 +41,10 @@ func main() {
 	authService := service.NewAuthService(authRepo, userRepo, emailSender)
 	authHandler := handlers.NewAuthHandler(authService)
 
+	universityRepo := repository.NewUniversityRepository(db)
+	universityService := service.NewUniversityService(universityRepo)
+	universityHandler := handlers.NewUniversityHandler(universityService)
+
 	certificateRepo := repository.NewCertificateRepository(db)
 	certificateService := service.NewCertificateService(certificateRepo, userRepo)
 	certificateHandler := handlers.NewCertificateHandler(certificateService)
@@ -47,6 +53,7 @@ func main() {
 		userHandler,
 		authHandler,
 		certificateHandler,
+		universityHandler,
 	)
 
 	go func() {

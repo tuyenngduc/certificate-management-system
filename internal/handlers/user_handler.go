@@ -40,7 +40,7 @@ func (h *UserHandler) GetAllUsers(c *gin.Context) {
 		})
 	}
 
-	c.JSON(200, resp)
+	c.JSON(200, gin.H{"data": resp})
 }
 
 func (h *UserHandler) GetUserByID(c *gin.Context) {
@@ -65,7 +65,7 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 		Course:    user.Course,
 		Status:    user.Status,
 	}
-	c.JSON(200, resp)
+	c.JSON(200, gin.H{"data": resp})
 }
 func (h *UserHandler) SearchUsers(c *gin.Context) {
 	var params models.SearchUserParams

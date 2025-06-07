@@ -55,6 +55,23 @@ func TranslateError(field, tag string) string {
 		"RegistrationNumber": {
 			"required": "Số vào sổ không được để trống",
 		},
+		"UniversityName": {
+			"required": "Tên trường không được để trống",
+		},
+		"UniversityCode": {
+			"required": "Mã trường không được để trống",
+		},
+		"Address": {
+			"required": "Địa chỉ trường không được để trống",
+		},
+		"EmailDomain": {
+			"required": "Tên miền email không được để trống",
+			"email":    "Tên miền email không hợp lệ",
+		},
+		"Action": {
+			"required": "Hành động không được để trống",
+			"oneof":    "Hành động thực hiện approve hoặc reject",
+		},
 	}
 
 	if fieldMsg, ok := messages[field]; ok {

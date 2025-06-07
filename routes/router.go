@@ -10,6 +10,7 @@ func SetupRouter(
 	userHandler *handlers.UserHandler,
 	authHandler *handlers.AuthHandler,
 	certificateHandler *handlers.CertificateHandler,
+	universityHandler *handlers.UniversityHandler,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -35,6 +36,14 @@ func SetupRouter(
 	api.POST("/auth/register", authHandler.Register)
 
 	//Certificate routes
+	api.GET("/certificates", certificateHandler.GetAllCertificates)
 	api.POST("/certificates", certificateHandler.CreateCertificate)
+	api.GET("/certificates/:id", certificateHandler.GetCertificateByID)
+
+	//University routes
+	api.POST("/universities", universityHandler.CreateUniversity)
+	api.POST("/universities/approve-or-reject", universityHandler.ApproveOrRejectUniversity)
+	api.GET("/universities", universityHandler.GetAllUniversities)
+	api.GET("/universities/approved", universityHandler.GetApprovedUniversities)
 	return r
 }

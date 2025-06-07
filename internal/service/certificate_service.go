@@ -11,6 +11,9 @@ import (
 )
 
 type CertificateService interface {
+	GetAllCertificates(ctx context.Context) ([]*models.Certificate, error)
+	DeleteCertificate(ctx context.Context, id primitive.ObjectID) error
+	GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.Certificate, error)
 	CreateCertificate(ctx context.Context, req *models.CreateCertificateRequest) (*models.CertificateResponse, error)
 }
 
@@ -65,4 +68,14 @@ func (s *certificateService) CreateCertificate(ctx context.Context, req *models.
 		CreatedAt:       cert.CreatedAt,
 		UpdatedAt:       cert.UpdatedAt,
 	}, nil
+}
+
+func (s *certificateService) GetAllCertificates(ctx context.Context) ([]*models.Certificate, error) {
+	return s.certificateRepo.GetAllCertificates(ctx)
+}
+func (s *certificateService) GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.Certificate, error) {
+	return s.certificateRepo.GetCertificateByID(ctx, id)
+}
+func (s *certificateService) DeleteCertificate(ctx context.Context, id primitive.ObjectID) error {
+	return s.certificateRepo.DeleteCertificate(ctx, id)
 }

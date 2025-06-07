@@ -7,6 +7,8 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type CertificateHandler struct {
@@ -43,5 +45,82 @@ func (h *CertificateHandler) CreateCertificate(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusCreated, resp)
+	c.JSON(http.StatusCreated, gin.H{"data": resp})
+}
+func (h *CertificateHandler) GetAllCertificates(c *gin.Context) {
+	certs, err := h.certificateService.GetAllCertificates(c.Request.Context())
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	var resp []models.CertificateResponse
+	for _, cert := range certs {
+		resp = append(resp, models.CertificateResponse{
+			ID:              cert.ID.Hex(),
+			UserID:          cert.UserID.Hex(),
+			StudentID:       cert.StudentID,
+			CertificateType: cert.CertificateType,
+			Name:            cert.Name,
+			Issuer:          cert.Issuer,
+			SerialNumber:    cert.SerialNumber,
+			RegNo:           cert.RegNo,
+			Signed:          cert.Signed,
+			CreatedAt:       cert.CreatedAt,
+			UpdatedAt:       cert.UpdatedAt,
+		})
+	}
+
+	c.JSON(200, gin.H{"data": resp})
+}
+
+func (h *CertificateHandler) GetCertificateByID(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	cert, err := h.certificateService.GetCertificateByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Không tìm thấy chứng chỉ"})
+		return
+	}
+
+	resp := models.CertificateResponse{
+		ID:              cert.ID.Hex(),
+		UserID:          cert.UserID.Hex(),
+		StudentID:       cert.StudentID,
+		CertificateType: cert.CertificateType,
+		Name:            cert.Name,
+		Issuer:          cert.Issuer,
+		SerialNumber:    cert.SerialNumber,
+		RegNo:           cert.RegNo,
+		Signed:          cert.Signed,
+		CreatedAt:       cert.CreatedAt,
+		UpdatedAt:       cert.UpdatedAt,
+	}
+
+	c.JSON(200, gin.H{"data": resp})
+}
+func (h *CertificateHandler) DeleteCertificate(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	err = h.certificateService.DeleteCertificate(c.Request.Context(), id)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(404, gin.H{"error": "Không tìm thấy chứng chỉ"})
+			return
+		}
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Xóa chứng chỉ thành công"})
 }
