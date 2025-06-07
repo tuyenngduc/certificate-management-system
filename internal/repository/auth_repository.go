@@ -17,7 +17,7 @@ type AuthRepository interface {
 	IsPersonalEmailExist(ctx context.Context, email string) (bool, error)
 	CreateAccount(ctx context.Context, acc *models.Account) error
 	FindByPersonalEmail(ctx context.Context, email string) (*models.Account, error)
-	GetAllAccounts(ctx context.Context) ([]*models.Account, error)
+	GetAllAccounts(ctx context.Context, page, pageSize int) ([]*models.Account, int64, error)
 	DeleteAccountByEmail(ctx context.Context, email string) error
 	UpdatePassword(ctx context.Context, accountID primitive.ObjectID, newHash string) error
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.Account, error)
@@ -69,19 +69,28 @@ func (r *authRepository) FindByPersonalEmail(ctx context.Context, email string) 
 	return &account, nil
 }
 
-func (r *authRepository) GetAllAccounts(ctx context.Context) ([]*models.Account, error) {
-	cursor, err := r.col.Find(ctx, bson.M{})
+func (r *authRepository) GetAllAccounts(ctx context.Context, page, pageSize int) ([]*models.Account, int64, error) {
+	skip := (page - 1) * pageSize
+
+	total, err := r.col.CountDocuments(ctx, bson.M{})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(pageSize)).SetSort(bson.D{{Key: "created_at", Value: -1}})
+	cursor, err := r.col.Find(ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
 	var accounts []*models.Account
 	if err := cursor.All(ctx, &accounts); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return accounts, nil
+
+	return accounts, total, nil
 }
+
 func (r *authRepository) DeleteAccountByEmail(ctx context.Context, email string) error {
 	result, err := r.col.DeleteOne(ctx, bson.M{"personal_email": email})
 	if err != nil {

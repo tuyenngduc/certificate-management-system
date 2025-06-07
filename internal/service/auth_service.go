@@ -19,9 +19,9 @@ type AuthService interface {
 	VerifyOTP(ctx context.Context, req *models.VerifyOTPRequest) (string, error)
 	Register(ctx context.Context, req models.RegisterRequest) error
 	Login(ctx context.Context, email, password string) (*models.Account, error)
-	GetAllAccounts(ctx context.Context) ([]*models.Account, error)
 	DeleteAccountByEmail(ctx context.Context, email string) error
 	ChangePassword(ctx context.Context, accountID primitive.ObjectID, oldPass, newPass string) error
+	GetAllAccounts(ctx context.Context, page, pageSize int) ([]*models.Account, int64, error)
 }
 
 type authService struct {
@@ -150,9 +150,10 @@ func (s *authService) Login(ctx context.Context, email, password string) (*model
 	return account, nil
 }
 
-func (s *authService) GetAllAccounts(ctx context.Context) ([]*models.Account, error) {
-	return s.authRepo.GetAllAccounts(ctx)
+func (s *authService) GetAllAccounts(ctx context.Context, page, pageSize int) ([]*models.Account, int64, error) {
+	return s.authRepo.GetAllAccounts(ctx, page, pageSize)
 }
+
 func (s *authService) DeleteAccountByEmail(ctx context.Context, email string) error {
 	err := s.authRepo.DeleteAccountByEmail(ctx, email)
 	if err != nil {

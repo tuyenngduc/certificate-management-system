@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"errors"
+	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +25,17 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	}
 }
 func (h *AuthHandler) GetAllAccounts(c *gin.Context) {
-	accounts, err := h.authService.GetAllAccounts(c.Request.Context())
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	accounts, total, err := h.authService.GetAllAccounts(c.Request.Context(), page, pageSize)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -35,7 +47,6 @@ func (h *AuthHandler) GetAllAccounts(c *gin.Context) {
 		if acc.StudentID != primitive.NilObjectID {
 			studentID = &acc.StudentID
 		}
-
 		var universityID *primitive.ObjectID
 		if acc.UniversityID != primitive.NilObjectID {
 			universityID = &acc.UniversityID
@@ -52,7 +63,15 @@ func (h *AuthHandler) GetAllAccounts(c *gin.Context) {
 		})
 	}
 
-	c.JSON(200, resp)
+	totalPages := int(math.Ceil(float64(total) / float64(pageSize)))
+
+	c.JSON(200, gin.H{
+		"data":       resp,
+		"page":       page,
+		"page_size":  pageSize,
+		"total":      total,
+		"total_page": totalPages,
+	})
 }
 
 func (h *AuthHandler) RequestOTP(c *gin.Context) {
