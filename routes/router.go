@@ -28,12 +28,13 @@ func SetupRouter(
 	api.PUT("/users/:id", userHandler.UpdateUser)
 	api.DELETE("/users/:id", userHandler.DeleteUser)
 
-	// Auth routes
+	// Auth & Account routes
 	api.POST("/auth/login", authHandler.Login)
 	api.GET("/auth/accounts", authHandler.GetAllAccounts)
 	api.POST("/auth/request-otp", authHandler.RequestOTP)
 	api.POST("/auth/verify-otp", authHandler.VerifyOTP)
 	api.POST("/auth/register", authHandler.Register)
+	api.DELETE("/auth/accounts", authHandler.DeleteAccount)
 
 	//Certificate routes
 	api.GET("/certificates", certificateHandler.GetAllCertificates)

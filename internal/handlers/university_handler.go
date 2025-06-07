@@ -61,18 +61,25 @@ func (h *UniversityHandler) ApproveOrRejectUniversity(c *gin.Context) {
 		case common.ErrUniversityNotFound:
 			c.JSON(404, gin.H{"error": "Không tìm thấy trường"})
 			return
+		case common.ErrUniversityCodeExists:
+			c.JSON(409, gin.H{"error": "Mã trường đã tồn tại"})
+			return
 		default:
-			c.JSON(500, gin.H{"error": "Lỗi hệ thống"})
+			c.JSON(500, gin.H{"error": "Lỗi hệ thống: " + err.Error()})
 			return
 		}
 	}
 
-	if req.Action == "approve" {
-		c.JSON(200, gin.H{"message": "Trường đã được phê duyệt"})
-	} else {
-		c.JSON(200, gin.H{"message": "Đã từ chối yêu cầu sử dụng hệ thống"})
+	switch req.Action {
+	case "approve":
+		c.JSON(200, gin.H{"message": "Trường đã được phê duyệt và đã gửi tài khoản qua email"})
+	case "reject":
+		c.JSON(200, gin.H{"message": "Đã từ chối và xóa trường khỏi hệ thống"})
+	default:
+		c.JSON(400, gin.H{"error": "Hành động không hợp lệ"})
 	}
 }
+
 func (h *UniversityHandler) GetAllUniversities(c *gin.Context) {
 	universities, err := h.universityService.GetAllUniversities(c.Request.Context())
 	if err != nil {

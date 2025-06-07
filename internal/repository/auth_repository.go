@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,6 +17,7 @@ type AuthRepository interface {
 	CreateAccount(ctx context.Context, acc *models.Account) error
 	FindByPersonalEmail(ctx context.Context, email string) (*models.Account, error)
 	GetAllAccounts(ctx context.Context) ([]*models.Account, error)
+	DeleteAccountByEmail(ctx context.Context, email string) error
 }
 
 type authRepository struct {
@@ -23,7 +25,7 @@ type authRepository struct {
 }
 
 func NewAuthRepository(db *mongo.Database) AuthRepository {
-	col := db.Collection("auth")
+	col := db.Collection("accounts")
 	return &authRepository{col: col}
 }
 
@@ -75,4 +77,16 @@ func (r *authRepository) GetAllAccounts(ctx context.Context) ([]*models.Account,
 		return nil, err
 	}
 	return accounts, nil
+}
+func (r *authRepository) DeleteAccountByEmail(ctx context.Context, email string) error {
+	result, err := r.col.DeleteOne(ctx, bson.M{"personal_email": email})
+	if err != nil {
+		return err
+	}
+
+	if result.DeletedCount == 0 {
+		return common.ErrAccountUniversityNotFound
+	}
+
+	return nil
 }

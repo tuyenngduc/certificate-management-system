@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
 	"github.com/tuyenngduc/certificate-management-system/utils"
@@ -116,4 +118,23 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+func (h *AuthHandler) DeleteAccount(c *gin.Context) {
+	email := c.Query("email")
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email là bắt buộc"})
+		return
+	}
+
+	err := h.authService.DeleteAccountByEmail(c.Request.Context(), email)
+	if err != nil {
+		if errors.Is(err, common.ErrAccountUniversityNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Trường không tồn tại"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Xóa tài khoản thất bại: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Xóa tài khoản thành công"})
 }

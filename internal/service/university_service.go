@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
+	"github.com/tuyenngduc/certificate-management-system/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -20,10 +22,20 @@ type UniversityService interface {
 
 type universityService struct {
 	universityRepo repository.UniversityRepository
+	authRepo       repository.AuthRepository
+	emailSender    utils.EmailSender
 }
 
-func NewUniversityService(universityRepo repository.UniversityRepository) UniversityService {
-	return &universityService{universityRepo: universityRepo}
+func NewUniversityService(
+	universityRepo repository.UniversityRepository,
+	authRepo repository.AuthRepository,
+	emailSender utils.EmailSender,
+) UniversityService {
+	return &universityService{
+		universityRepo: universityRepo,
+		authRepo:       authRepo,
+		emailSender:    emailSender,
+	}
 }
 
 func (s *universityService) CreateUniversity(ctx context.Context, req *models.CreateUniversityRequest) error {
@@ -66,13 +78,53 @@ func (s *universityService) ApproveOrRejectUniversity(ctx context.Context, idStr
 
 	switch action {
 	case "approve":
-		return s.universityRepo.UpdateStatus(ctx, objID, "approved")
+		if err := s.universityRepo.UpdateStatus(ctx, objID, "approved"); err != nil {
+			return err
+		}
+
+		// Tạo mật khẩu ngẫu nhiên
+		rawPassword := utils.GenerateRandomPassword(10)
+		hashed, err := utils.HashPassword(rawPassword)
+		if err != nil {
+			return err
+		}
+
+		// Tạo account quản trị trường
+		account := &models.Account{
+			ID:            primitive.NewObjectID(),
+			PersonalEmail: university.EmailDomain,
+			PasswordHash:  hashed,
+			CreatedAt:     time.Now(),
+			Role:          "university_admin",
+		}
+		if err := s.authRepo.CreateAccount(ctx, account); err != nil {
+			return err
+		}
+
+		// Gửi email thông báo
+		emailBody := fmt.Sprintf(`Xin chào,
+
+Trường %s đã được phê duyệt truy cập hệ thống.
+
+Thông tin tài khoản:
+- Email đăng nhập: %s
+- Mật khẩu: %s
+
+Vui lòng đăng nhập và thay đổi mật khẩu ngay sau lần đầu sử dụng.
+
+Trân trọng.`, university.UniversityName, account.StudentEmail, rawPassword)
+
+		_ = s.emailSender.SendEmail(account.StudentEmail, "Tài khoản quản trị trường", emailBody)
+		return nil
+
 	case "reject":
 		return s.universityRepo.DeleteByID(ctx, objID)
+
 	default:
 		return errors.New("invalid action")
 	}
 }
+
 func (s *universityService) GetAllUniversities(ctx context.Context) ([]*models.University, error) {
 	return s.universityRepo.GetAllUniversities(ctx)
 }

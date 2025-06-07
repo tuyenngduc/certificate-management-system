@@ -19,6 +19,7 @@ type AuthService interface {
 	Register(ctx context.Context, req models.RegisterRequest) error
 	Login(ctx context.Context, email, password string) (*models.Account, error)
 	GetAllAccounts(ctx context.Context) ([]*models.Account, error)
+	DeleteAccountByEmail(ctx context.Context, email string) error
 }
 
 type authService struct {
@@ -140,4 +141,11 @@ func (s *authService) Login(ctx context.Context, email, password string) (*model
 
 func (s *authService) GetAllAccounts(ctx context.Context) ([]*models.Account, error) {
 	return s.authRepo.GetAllAccounts(ctx)
+}
+func (s *authService) DeleteAccountByEmail(ctx context.Context, email string) error {
+	err := s.authRepo.DeleteAccountByEmail(ctx, email)
+	if err != nil {
+		return err
+	}
+	return nil
 }

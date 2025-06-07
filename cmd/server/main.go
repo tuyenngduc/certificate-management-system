@@ -42,7 +42,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService)
 
 	universityRepo := repository.NewUniversityRepository(db)
-	universityService := service.NewUniversityService(universityRepo)
+	universityService := service.NewUniversityService(universityRepo, authRepo, emailSender)
 	universityHandler := handlers.NewUniversityHandler(universityService)
 
 	certificateRepo := repository.NewCertificateRepository(db)
