@@ -99,11 +99,14 @@ func (s *universityService) ApproveOrRejectUniversity(ctx context.Context, idStr
 		// Tạo account quản trị trường
 		account := &models.Account{
 			ID:            primitive.NewObjectID(),
+			UniversityID:  university.ID,
 			PersonalEmail: university.EmailDomain,
 			PasswordHash:  hashed,
 			CreatedAt:     time.Now(),
 			Role:          "university_admin",
 		}
+		fmt.Println("University ID:", university.ID.Hex())
+
 		if err := s.authRepo.CreateAccount(ctx, account); err != nil {
 			return err
 		}

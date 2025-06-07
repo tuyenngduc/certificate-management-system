@@ -31,9 +31,20 @@ func (h *AuthHandler) GetAllAccounts(c *gin.Context) {
 
 	var resp []models.AccountResponse
 	for _, acc := range accounts {
+		var studentID *primitive.ObjectID
+		if acc.StudentID != primitive.NilObjectID {
+			studentID = &acc.StudentID
+		}
+
+		var universityID *primitive.ObjectID
+		if acc.UniversityID != primitive.NilObjectID {
+			universityID = &acc.UniversityID
+		}
+
 		resp = append(resp, models.AccountResponse{
 			ID:            acc.ID,
-			StudentID:     acc.StudentID,
+			StudentID:     studentID,
+			UniversityID:  universityID,
 			StudentEmail:  acc.StudentEmail,
 			PersonalEmail: acc.PersonalEmail,
 			CreatedAt:     acc.CreatedAt.Format(time.RFC3339),
@@ -117,7 +128,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := utils.GenerateToken(account.ID, account.StudentID, account.Role, 24*time.Hour)
+	token, err := utils.GenerateToken(account.ID, account.StudentID, account.UniversityID, account.Role, time.Hour*24)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tạo được token"})
 		return
@@ -130,6 +141,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, resp)
 }
+
 func (h *AuthHandler) DeleteAccount(c *gin.Context) {
 	email := c.Query("email")
 	if email == "" {

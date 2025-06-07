@@ -8,7 +8,8 @@ import (
 
 type Account struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty"`
-	StudentID     primitive.ObjectID `bson:"student_id"`     // liên kết với struct User
+	StudentID     primitive.ObjectID `bson:"student_id"`
+	UniversityID  primitive.ObjectID `bson:"university_id,omitempty"`
 	StudentEmail  string             `bson:"student_email"`  // Email @actvn.edu.vn
 	PersonalEmail string             `bson:"personal_email"` // Email Gmail, dùng để login sau này
 	PasswordHash  string             `bson:"password_hash"`
@@ -16,12 +17,13 @@ type Account struct {
 	Role          string             `bson:"role"`
 }
 type AccountResponse struct {
-	ID            primitive.ObjectID `json:"id"`
-	StudentID     primitive.ObjectID `json:"student_id"`
-	StudentEmail  string             `json:"student_email"`
-	PersonalEmail string             `json:"personal_email"`
-	CreatedAt     string             `json:"created_at"`
-	Role          string             `json:"role"`
+	ID            primitive.ObjectID  `json:"id"`
+	StudentID     *primitive.ObjectID `json:"student_id,omitempty"`
+	UniversityID  *primitive.ObjectID `json:"university_id,omitempty"`
+	StudentEmail  string              `json:"student_email,omitempty"`
+	PersonalEmail string              `json:"personal_email"`
+	CreatedAt     string              `json:"created_at"`
+	Role          string              `json:"role"`
 }
 
 type OTP struct {

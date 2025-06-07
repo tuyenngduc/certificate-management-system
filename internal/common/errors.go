@@ -3,6 +3,7 @@ package common
 import "errors"
 
 var (
+	ErrNoFieldsToUpdate               = errors.New("no_fields_to_update")
 	ErrUserNotExisted                 = errors.New("user_not_exists")
 	ErrInvalidUserID                  = errors.New("invalid_user_id")
 	ErrStudentIDExists                = errors.New("student_id_exists")
@@ -18,4 +19,8 @@ var (
 	ErrInvalidOldPassword             = errors.New("invalid_old_password")
 	ErrPersonalAccountAlreadyExist    = errors.New("personal_account_already_exists")
 	ErrCheckingPersonalAccount        = errors.New("error_checking_personal_account")
+
+	//Faculty
+	ErrFacultyNotFound   = errors.New("faculty_not_found")
+	ErrFacultyCodeExists = errors.New("faculty_code_existed")
 )

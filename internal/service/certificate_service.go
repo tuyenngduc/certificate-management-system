@@ -39,7 +39,7 @@ func (s *certificateService) CreateCertificate(ctx context.Context, req *models.
 	cert := &models.Certificate{
 		ID:              primitive.NewObjectID(),
 		UserID:          userID,
-		StudentID:       user.StudentID,
+		StudentCode:     user.StudentCode,
 		CertificateType: req.CertificateType,
 		Name:            req.Name,
 		Issuer:          req.Issuer,
@@ -58,7 +58,7 @@ func (s *certificateService) CreateCertificate(ctx context.Context, req *models.
 	return &models.CertificateResponse{
 		ID:              cert.ID.Hex(),
 		UserID:          cert.UserID.Hex(),
-		StudentID:       cert.StudentID,
+		StudentCode:     cert.StudentCode,
 		CertificateType: cert.CertificateType,
 		Name:            cert.Name,
 		Issuer:          cert.Issuer,

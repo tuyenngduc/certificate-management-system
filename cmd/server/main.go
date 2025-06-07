@@ -34,19 +34,21 @@ func main() {
 	)
 
 	userRepo := repository.NewUserRepository(db)
-	userService := service.NewUserService(userRepo)
-	userHandler := handlers.NewUserHandler(userService)
-
 	authRepo := repository.NewAuthRepository(db)
-	authService := service.NewAuthService(authRepo, userRepo, emailSender)
-	authHandler := handlers.NewAuthHandler(authService)
-
 	universityRepo := repository.NewUniversityRepository(db)
-	universityService := service.NewUniversityService(universityRepo, authRepo, emailSender)
-	universityHandler := handlers.NewUniversityHandler(universityService)
-
 	certificateRepo := repository.NewCertificateRepository(db)
+	facultyRepo := repository.NewFacultyRepository(db)
+
+	userService := service.NewUserService(userRepo, universityRepo, facultyRepo)
+	authService := service.NewAuthService(authRepo, userRepo, emailSender)
+	universityService := service.NewUniversityService(universityRepo, authRepo, emailSender)
 	certificateService := service.NewCertificateService(certificateRepo, userRepo)
+	facultyService := service.NewFacultyService(universityRepo, facultyRepo)
+
+	facultyHandler := handlers.NewFacultyHandler(facultyService)
+	userHandler := handlers.NewUserHandler(userService)
+	authHandler := handlers.NewAuthHandler(authService)
+	universityHandler := handlers.NewUniversityHandler(universityService)
 	certificateHandler := handlers.NewCertificateHandler(certificateService)
 
 	r := routes.SetupRouter(
@@ -54,6 +56,7 @@ func main() {
 		authHandler,
 		certificateHandler,
 		universityHandler,
+		facultyHandler,
 	)
 
 	go func() {

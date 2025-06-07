@@ -12,6 +12,7 @@ func SetupRouter(
 	authHandler *handlers.AuthHandler,
 	certificateHandler *handlers.CertificateHandler,
 	universityHandler *handlers.UniversityHandler,
+	facultyHandler *handlers.FacultyHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -63,6 +64,14 @@ func SetupRouter(
 	universityGroup.POST("/approve-or-reject", universityHandler.ApproveOrRejectUniversity)
 	universityGroup.GET("", universityHandler.GetAllUniversities)
 	universityGroup.GET("/status", universityHandler.GetUniversities)
+
+	//Faculty
+	facultyGroup := api.Group("/faculties")
+	facultyGroup.Use(middleware.JWTAuthMiddleware())
+	facultyGroup.POST("", facultyHandler.CreateFaculty)
+	facultyGroup.GET("", facultyHandler.GetAllFaculties)
+	facultyGroup.PUT("/:id", facultyHandler.UpdateFaculty)
+	facultyGroup.DELETE("/:id", facultyHandler.DeleteFaculty)
 
 	return r
 }

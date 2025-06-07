@@ -59,7 +59,7 @@ func (h *CertificateHandler) GetAllCertificates(c *gin.Context) {
 		resp = append(resp, models.CertificateResponse{
 			ID:              cert.ID.Hex(),
 			UserID:          cert.UserID.Hex(),
-			StudentID:       cert.StudentID,
+			StudentCode:     cert.StudentCode,
 			CertificateType: cert.CertificateType,
 			Name:            cert.Name,
 			Issuer:          cert.Issuer,
@@ -91,7 +91,7 @@ func (h *CertificateHandler) GetCertificateByID(c *gin.Context) {
 	resp := models.CertificateResponse{
 		ID:              cert.ID.Hex(),
 		UserID:          cert.UserID.Hex(),
-		StudentID:       cert.StudentID,
+		StudentCode:     cert.StudentCode,
 		CertificateType: cert.CertificateType,
 		Name:            cert.Name,
 		Issuer:          cert.Issuer,

@@ -22,53 +22,32 @@ func NewUserHandler(s service.UserService) *UserHandler {
 }
 
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
-	users, err := h.userService.GetAllUsers(c.Request.Context())
+	resp, err := h.userService.GetAllUsers(c.Request.Context())
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	var resp []models.UserResponse
-	for _, u := range users {
-		resp = append(resp, models.UserResponse{
-			ID:        u.ID,
-			StudentID: u.StudentID,
-			FullName:  u.FullName,
-			Email:     u.Email,
-			Faculty:   u.Faculty,
-			Class:     u.Class,
-			Course:    u.Course,
-			Status:    u.Status,
-		})
-	}
-
-	c.JSON(200, gin.H{"data": resp})
+	c.JSON(http.StatusOK, gin.H{"data": resp})
 }
 
 func (h *UserHandler) GetUserByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "ID không hợp lệ"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
 		return
 	}
-	user, err := h.userService.GetUserByID(c.Request.Context(), id)
+
+	userResp, err := h.userService.GetUserByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "Không tìm thấy user"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy user"})
 		return
 	}
-	resp := models.UserResponse{
-		ID:        user.ID,
-		StudentID: user.StudentID,
-		FullName:  user.FullName,
-		Email:     user.Email,
-		Faculty:   user.Faculty,
-		Class:     user.Class,
-		Course:    user.Course,
-		Status:    user.Status,
-	}
-	c.JSON(200, gin.H{"data": resp})
+
+	c.JSON(http.StatusOK, gin.H{"data": userResp})
 }
+
 func (h *UserHandler) SearchUsers(c *gin.Context) {
 	var params models.SearchUserParams
 	if err := c.ShouldBindQuery(&params); err != nil {
@@ -88,22 +67,8 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 		return
 	}
 
-	var resp []models.UserResponse
-	for _, u := range users {
-		resp = append(resp, models.UserResponse{
-			ID:        u.ID,
-			StudentID: u.StudentID,
-			FullName:  u.FullName,
-			Email:     u.Email,
-			Faculty:   u.Faculty,
-			Class:     u.Class,
-			Course:    u.Course,
-			Status:    u.Status,
-		})
-	}
-
 	c.JSON(200, gin.H{
-		"data":       resp,
+		"data":       users,
 		"total":      total,
 		"page":       params.Page,
 		"page_size":  params.PageSize,
@@ -129,8 +94,12 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Mã sinh viên đã tồn tại"})
 		case errors.Is(err, common.ErrEmailExists):
 			c.JSON(http.StatusConflict, gin.H{"error": "Email đã tồn tại"})
+		case errors.Is(err, common.ErrUniversityNotFound):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Mã trường không tồn tại"})
+		case errors.Is(err, common.ErrFacultyNotFound):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Mã khoa không tồn tại hoặc không thuộc trường"})
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống, vui lòng thử lại"})
 		}
 		return
 	}
@@ -159,19 +128,27 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	err = h.userService.UpdateUser(c.Request.Context(), id, req)
 	if err != nil {
 		switch err {
-		case mongo.ErrNoDocuments:
-			c.JSON(404, gin.H{"error": "Không tìm thấy user"})
 		case common.ErrStudentIDExists:
-			c.JSON(400, gin.H{"error": "Mã sinh viên đã được sử dụng"})
+			c.JSON(http.StatusConflict, gin.H{"error": "Mã sinh viên đã tồn tại"})
 		case common.ErrEmailExists:
-			c.JSON(400, gin.H{"error": "Email đã được sử dụng"})
+			c.JSON(http.StatusConflict, gin.H{"error": "Email đã tồn tại"})
+		case common.ErrUniversityNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "Trường đại học không tồn tại"})
+		case common.ErrFacultyNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "Khoa không tồn tại"})
 		default:
-			c.JSON(400, gin.H{"error": err.Error()})
+			if err.Error() == "phải cung cấp cả faculty_code và university_code" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			} else if err.Error() == "không có trường nào để cập nhật" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi server"})
+			}
 		}
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "Cập nhật thành công"})
+	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật user thành công"})
 }
 
 func (h *UserHandler) DeleteUser(c *gin.Context) {
@@ -236,19 +213,18 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 
 		result := map[string]interface{}{"row": i + 1}
 
-		if len(row) < 6 {
+		if len(row) < 5 {
 			result["error"] = "Thiếu dữ liệu"
 			results = append(results, result)
 			continue
 		}
 
 		user := &models.CreateUserRequest{
-			StudentID: row[0],
-			FullName:  row[1],
-			Email:     row[2],
-			Faculty:   row[3],
-			Class:     row[4],
-			Course:    row[5],
+			StudentCode: row[0],
+			FullName:    row[1],
+			Email:       row[2],
+			FacultyCode: row[3],
+			Course:      row[4],
 		}
 
 		_, err := h.userService.CreateUser(c.Request.Context(), user)

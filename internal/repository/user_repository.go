@@ -19,8 +19,8 @@ type UserRepository interface {
 	UpdateUser(ctx context.Context, id primitive.ObjectID, update bson.M) error
 	SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error)
 	DeleteUser(ctx context.Context, id primitive.ObjectID) error
-	FindByStudentID(ctx context.Context, studentID string) (*models.User, error)
-	ExistsByStudentID(ctx context.Context, studentID string) (bool, error)
+	FindByStudentCode(ctx context.Context, studentID string) (*models.User, error)
+	ExistsByStudentCode(ctx context.Context, studentID string) (bool, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 }
 type userRepository struct {
@@ -58,20 +58,18 @@ func (r *userRepository) GetUserByID(ctx context.Context, id primitive.ObjectID)
 }
 func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error) {
 	filter := bson.M{}
-	if params.StudentID != "" {
-		filter["studentId"] = bson.M{"$regex": params.StudentID, "$options": "i"}
+	if params.StudentCode != "" {
+		filter["student_code"] = bson.M{"$regex": params.StudentCode, "$options": "i"}
 	}
 	if params.FullName != "" {
-		filter["fullName"] = bson.M{"$regex": params.FullName, "$options": "i"}
+		filter["full_name"] = bson.M{"$regex": params.FullName, "$options": "i"}
 	}
 	if params.Email != "" {
 		filter["email"] = bson.M{"$regex": params.Email, "$options": "i"}
 	}
-	if params.Class != "" {
-		filter["classId"] = bson.M{"$regex": params.Class, "$options": "i"}
-	}
+
 	if params.Faculty != "" {
-		filter["facultyId"] = bson.M{"$regex": params.Faculty, "$options": "i"}
+		filter["faculty_id"] = bson.M{"$regex": params.Faculty, "$options": "i"}
 	}
 
 	skip := int64((params.Page - 1) * params.PageSize)
@@ -113,7 +111,7 @@ func (r *userRepository) UpdateUser(ctx context.Context, id primitive.ObjectID, 
 
 func (r *userRepository) initIndexes(ctx context.Context) error {
 	studentIDIndex := mongo.IndexModel{
-		Keys:    bson.D{{Key: "studentId", Value: 1}},
+		Keys:    bson.D{{Key: "student_code", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	}
 	emailIndex := mongo.IndexModel{
@@ -134,9 +132,9 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models
 	}
 	return &user, nil
 }
-func (r *userRepository) FindByStudentID(ctx context.Context, studentID string) (*models.User, error) {
+func (r *userRepository) FindByStudentCode(ctx context.Context, studentID string) (*models.User, error) {
 	var user models.User
-	err := r.col.FindOne(ctx, bson.M{"studentId": studentID}).Decode(&user)
+	err := r.col.FindOne(ctx, bson.M{"student_code": studentID}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
@@ -157,8 +155,8 @@ func (r *userRepository) DeleteUser(ctx context.Context, id primitive.ObjectID) 
 	return nil
 }
 
-func (r *userRepository) ExistsByStudentID(ctx context.Context, studentID string) (bool, error) {
-	count, err := r.col.CountDocuments(ctx, bson.M{"studentId": studentID})
+func (r *userRepository) ExistsByStudentCode(ctx context.Context, studentID string) (bool, error) {
+	count, err := r.col.CountDocuments(ctx, bson.M{"student_code": studentID})
 	if err != nil {
 		return false, err
 	}

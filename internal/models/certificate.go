@@ -9,7 +9,7 @@ import (
 type Certificate struct {
 	ID              primitive.ObjectID `bson:"_id,omitempty"`
 	UserID          primitive.ObjectID `bson:"user_id"`
-	StudentID       string             `bson:"student_id"`
+	StudentCode     string             `bson:"student_code"`
 	CertificateType string             `bson:"certificate_type"`
 	Name            string             `bson:"name"`
 	Issuer          string             `bson:"issuer"`
@@ -41,7 +41,7 @@ type CreateCertificateRequest struct {
 type CertificateResponse struct {
 	ID              string    `json:"id"`
 	UserID          string    `json:"user_id"`
-	StudentID       string    `json:"student_id"`
+	StudentCode     string    `json:"student_code"`
 	CertificateType string    `json:"certificate_type"`
 	Name            string    `json:"name"`
 	Issuer          string    `json:"issuer"`

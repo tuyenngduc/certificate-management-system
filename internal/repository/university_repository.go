@@ -13,6 +13,7 @@ import (
 type UniversityRepository interface {
 	CheckUniversityConflicts(ctx context.Context, universityName, emailDomain, universityCode string) (string, error)
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.University, error)
+	FindByCode(ctx context.Context, code string) (*models.University, error)
 	UpdateStatus(ctx context.Context, id primitive.ObjectID, status string) error
 	DeleteByID(ctx context.Context, id primitive.ObjectID) error
 	CreateUniversity(ctx context.Context, uni *models.University) error
@@ -123,4 +124,16 @@ func (r *universityRepository) GetUniversitiesByStatus(ctx context.Context, stat
 		return nil, err
 	}
 	return universities, nil
+}
+func (r *universityRepository) FindByCode(ctx context.Context, code string) (*models.University, error) {
+	filter := bson.M{"university_code": code}
+	var university models.University
+	err := r.col.FindOne(ctx, filter).Decode(&university)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &university, nil
 }
