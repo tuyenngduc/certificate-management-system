@@ -2,10 +2,8 @@ package common
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func TranslateError(field, tag string) string {
@@ -94,19 +92,4 @@ func ParseValidationError(err error) (map[string]string, bool) {
 		return errs, true
 	}
 	return nil, false
-}
-
-func ParseMongoDuplicateError(err error) string {
-	if mongoErr, ok := err.(mongo.WriteException); ok {
-		for _, writeErr := range mongoErr.WriteErrors {
-			if writeErr.Code == 11000 {
-				if strings.Contains(writeErr.Message, "studentId") {
-					return "Mã sinh viên đã tồn tại"
-				} else if strings.Contains(writeErr.Message, "email") {
-					return "Email đã tồn tại"
-				}
-			}
-		}
-	}
-	return ""
 }

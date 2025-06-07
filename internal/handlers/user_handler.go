@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
+	"github.com/xuri/excelize/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -122,15 +124,18 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	resp, err := h.userService.CreateUser(c.Request.Context(), &req)
 	if err != nil {
-		if userErr := common.ParseMongoDuplicateError(err); userErr != "" {
-			c.JSON(http.StatusConflict, gin.H{"error": userErr})
-			return
+		switch {
+		case errors.Is(err, common.ErrStudentIDExists):
+			c.JSON(http.StatusConflict, gin.H{"error": "Mã sinh viên đã tồn tại"})
+		case errors.Is(err, common.ErrEmailExists):
+			c.JSON(http.StatusConflict, gin.H{"error": "Email đã tồn tại"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, resp)
+	c.JSON(http.StatusCreated, gin.H{"data": resp})
 }
 
 func (h *UserHandler) UpdateUser(c *gin.Context) {
@@ -188,4 +193,91 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "Xóa user thành công"})
+}
+
+func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Vui lòng upload file Excel"})
+		return
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Không thể mở file"})
+		return
+	}
+	defer src.Close()
+
+	f, err := excelize.OpenReader(src)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File không đúng định dạng Excel"})
+		return
+	}
+
+	rows, err := f.GetRows("Sheet1")
+	if err != nil || len(rows) == 0 {
+		rows, err = f.GetRows("Sheet")
+		if err != nil || len(rows) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Không đọc được sheet dữ liệu (Sheet1 hoặc Sheet)"})
+			return
+		}
+	}
+
+	var (
+		results      []map[string]interface{}
+		successCount int
+	)
+
+	for i, row := range rows {
+		if i == 0 {
+			continue
+		}
+
+		result := map[string]interface{}{"row": i + 1}
+
+		if len(row) < 6 {
+			result["error"] = "Thiếu dữ liệu"
+			results = append(results, result)
+			continue
+		}
+
+		user := &models.CreateUserRequest{
+			StudentID: row[0],
+			FullName:  row[1],
+			Email:     row[2],
+			Faculty:   row[3],
+			Class:     row[4],
+			Course:    row[5],
+		}
+
+		_, err := h.userService.CreateUser(c.Request.Context(), user)
+		if err != nil {
+			switch {
+			case errors.Is(err, common.ErrStudentIDExists):
+				result["error"] = "Mã sinh viên đã tồn tại"
+			case errors.Is(err, common.ErrEmailExists):
+				result["error"] = "Email đã tồn tại"
+			default:
+				result["error"] = err.Error()
+			}
+		} else {
+			result["status"] = "created"
+			successCount++
+		}
+		results = append(results, result)
+	}
+
+	if successCount == len(results) {
+		c.JSON(http.StatusCreated, gin.H{
+			"success_count": successCount,
+			"results":       results,
+		})
+	} else {
+		c.JSON(http.StatusMultiStatus, gin.H{
+			"success_count": successCount,
+			"error_count":   len(results) - successCount,
+			"results":       results,
+		})
+	}
 }

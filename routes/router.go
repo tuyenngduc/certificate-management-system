@@ -21,6 +21,7 @@ func SetupRouter(
 	}))
 	api := r.Group("/api/v1")
 	// User routes
+	api.POST("/users/import-excel", userHandler.ImportUsersFromExcel)
 	api.GET("/users", userHandler.GetAllUsers)
 	api.POST("/users", userHandler.CreateUser)
 	api.GET("/users/:id", userHandler.GetUserByID)

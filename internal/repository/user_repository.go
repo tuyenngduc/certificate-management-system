@@ -20,6 +20,8 @@ type UserRepository interface {
 	SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error)
 	DeleteUser(ctx context.Context, id primitive.ObjectID) error
 	FindByStudentID(ctx context.Context, studentID string) (*models.User, error)
+	ExistsByStudentID(ctx context.Context, studentID string) (bool, error)
+	ExistsByEmail(ctx context.Context, email string) (bool, error)
 }
 type userRepository struct {
 	col *mongo.Collection
@@ -153,4 +155,20 @@ func (r *userRepository) DeleteUser(ctx context.Context, id primitive.ObjectID) 
 		return mongo.ErrNoDocuments
 	}
 	return nil
+}
+
+func (r *userRepository) ExistsByStudentID(ctx context.Context, studentID string) (bool, error) {
+	count, err := r.col.CountDocuments(ctx, bson.M{"studentId": studentID})
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *userRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	count, err := r.col.CountDocuments(ctx, bson.M{"email": email})
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

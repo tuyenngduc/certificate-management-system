@@ -39,6 +39,24 @@ func (s *userService) SearchUsers(ctx context.Context, params models.SearchUserP
 }
 
 func (s *userService) CreateUser(ctx context.Context, req *models.CreateUserRequest) (*models.UserResponse, error) {
+	// Kiểm tra StudentID tồn tại
+	exists, err := s.userRepo.ExistsByStudentID(ctx, req.StudentID)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, common.ErrStudentIDExists
+	}
+
+	// Kiểm tra Email tồn tại
+	exists, err = s.userRepo.ExistsByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, common.ErrEmailExists
+	}
+
 	user := &models.User{
 		ID:        primitive.NewObjectID(),
 		StudentID: req.StudentID,
@@ -54,6 +72,7 @@ func (s *userService) CreateUser(ctx context.Context, req *models.CreateUserRequ
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
 	}
+
 	resp := &models.UserResponse{
 		ID:        user.ID,
 		StudentID: user.StudentID,
