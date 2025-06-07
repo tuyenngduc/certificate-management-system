@@ -16,4 +16,6 @@ var (
 	ErrAccountUniversityAlreadyExists = errors.New("university_admin_account_already_exists")
 	ErrAccountNotFound                = errors.New("account_not_found")
 	ErrInvalidOldPassword             = errors.New("invalid_old_password")
+	ErrPersonalAccountAlreadyExist    = errors.New("personal_account_already_exists")
+	ErrCheckingPersonalAccount        = errors.New("error_checking_personal_account")
 )

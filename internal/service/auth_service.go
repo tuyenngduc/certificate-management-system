@@ -39,9 +39,18 @@ func NewAuthService(authRepo repository.AuthRepository, userRepo repository.User
 }
 
 func (s *authService) RequestOTP(ctx context.Context, input models.RequestOTPInput) error {
-	_, err := s.userRepo.FindByEmail(ctx, input.StudentEmail)
+	user, err := s.userRepo.FindByEmail(ctx, input.StudentEmail)
 	if err != nil {
-		return fmt.Errorf("email không tồn tại trong hệ thống")
+		return common.ErrUserNotExisted
+	}
+
+	// 2. Kiểm tra đã có tài khoản cá nhân chưa
+	existingAccount, err := s.authRepo.FindPersonalAccountByUserID(ctx, user.ID)
+	if err != nil {
+		return common.ErrCheckingPersonalAccount
+	}
+	if existingAccount != nil {
+		return common.ErrPersonalAccountAlreadyExist
 	}
 
 	otp := fmt.Sprintf("%06d", rand.Intn(1000000))

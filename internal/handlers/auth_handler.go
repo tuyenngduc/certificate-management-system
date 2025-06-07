@@ -51,8 +51,18 @@ func (h *AuthHandler) RequestOTP(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.RequestOTP(c.Request.Context(), input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	err := h.authService.RequestOTP(c.Request.Context(), input)
+	if err != nil {
+		switch err {
+		case common.ErrUserNotExisted:
+			c.JSON(http.StatusNotFound, gin.H{"error": "Email không tồn tại trong hệ thống"})
+		case common.ErrPersonalAccountAlreadyExist:
+			c.JSON(http.StatusConflict, gin.H{"error": "Email này đã được liên kết với tài khoản cá nhân"})
+		case common.ErrCheckingPersonalAccount:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi khi kiểm tra tài khoản cá nhân"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống"})
+		}
 		return
 	}
 

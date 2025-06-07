@@ -21,6 +21,7 @@ type AuthRepository interface {
 	DeleteAccountByEmail(ctx context.Context, email string) error
 	UpdatePassword(ctx context.Context, accountID primitive.ObjectID, newHash string) error
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.Account, error)
+	FindPersonalAccountByUserID(ctx context.Context, userID primitive.ObjectID) (*models.Account, error)
 }
 
 type authRepository struct {
@@ -111,4 +112,20 @@ func (r *authRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*
 		return nil, err
 	}
 	return &acc, nil
+}
+func (r *authRepository) FindPersonalAccountByUserID(ctx context.Context, userID primitive.ObjectID) (*models.Account, error) {
+	filter := bson.M{
+		"student_id":     userID,
+		"personal_email": bson.M{"$ne": ""},
+	}
+
+	var account models.Account
+	err := r.col.FindOne(ctx, filter).Decode(&account)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &account, nil
 }
