@@ -49,3 +49,11 @@ type CertificateResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
+
+type CertificateVerification struct {
+	ID               primitive.ObjectID `bson:"_id,omitempty"`
+	CertificateID    primitive.ObjectID `bson:"certificate_id"`
+	VerificationCode string             `bson:"verification_code"`
+	ExpiresAt        time.Time          `bson:"expires_at"`
+	CreatedAt        time.Time          `bson:"created_at"`
+}
