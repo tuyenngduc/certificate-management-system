@@ -22,6 +22,8 @@ type AuthService interface {
 	DeleteAccountByEmail(ctx context.Context, email string) error
 	ChangePassword(ctx context.Context, accountID primitive.ObjectID, oldPass, newPass string) error
 	GetAllAccounts(ctx context.Context, page, pageSize int) ([]*models.Account, int64, error)
+	GetAccountByID(ctx context.Context, id primitive.ObjectID) (*models.Account, error)
+	GetAccountsByRole(ctx context.Context, role string) ([]models.Account, error)
 }
 
 type authService struct {
@@ -36,6 +38,9 @@ func NewAuthService(authRepo repository.AuthRepository, userRepo repository.User
 		userRepo:    userRepo,
 		emailSender: emailSender,
 	}
+}
+func (s *authService) GetAccountByID(ctx context.Context, id primitive.ObjectID) (*models.Account, error) {
+	return s.authRepo.FindByID(ctx, id)
 }
 
 func (s *authService) RequestOTP(ctx context.Context, input models.RequestOTPInput) error {
@@ -177,4 +182,7 @@ func (s *authService) ChangePassword(ctx context.Context, accountID primitive.Ob
 		return err
 	}
 	return s.authRepo.UpdatePassword(ctx, accountID, newHash)
+}
+func (s *authService) GetAccountsByRole(ctx context.Context, role string) ([]models.Account, error) {
+	return s.authRepo.FindByRole(ctx, role)
 }

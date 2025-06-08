@@ -38,6 +38,8 @@ func SetupRouter(
 	authPrivate.GET("/accounts", authHandler.GetAllAccounts)
 	authPrivate.DELETE("/accounts", authHandler.DeleteAccount)
 	authPrivate.POST("/change-password", authHandler.ChangePassword)
+	authPrivate.GET("/university-admin-info", middleware.JWTAuthMiddleware(), authHandler.GetUniversityAdmins)
+	authPrivate.GET("/students-info", middleware.JWTAuthMiddleware(), authHandler.GetStudentAccounts)
 
 	// ===== User routes =====
 	userGroup := api.Group("/users")
@@ -56,6 +58,10 @@ func SetupRouter(
 	certificateGroup.GET("", certificateHandler.GetAllCertificates)
 	certificateGroup.POST("", certificateHandler.CreateCertificate)
 	certificateGroup.GET("/:id", certificateHandler.GetCertificateByID)
+	certificateGroup.POST("/upload-pdf/:certificateID", certificateHandler.UploadCertificateFile)
+	certificateGroup.GET("/file/:id", certificateHandler.GetCertificateFile)
+	certificateGroup.GET("/student/:id", certificateHandler.GetCertificatesByStudentID)
+	certificateGroup.GET("/my-certificates", certificateHandler.GetCertificatesOfCurrentUser)
 
 	// ===== University routes =====
 	universityGroup := api.Group("/universities")

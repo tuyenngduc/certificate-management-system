@@ -1,126 +1,380 @@
 package handlers
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/minio/minio-go/v7"
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
+	"github.com/tuyenngduc/certificate-management-system/pkg/database"
+	"github.com/tuyenngduc/certificate-management-system/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type CertificateHandler struct {
 	certificateService service.CertificateService
+	universityService  service.UniversityService
+	facultyService     service.FacultyService
+	userService        service.UserService
+	minioClient        *database.MinioClient
 }
 
-func NewCertificateHandler(certService service.CertificateService) *CertificateHandler {
-	return &CertificateHandler{certificateService: certService}
+func NewCertificateHandler(
+	certSvc service.CertificateService,
+	uniSvc service.UniversityService,
+	facultySvc service.FacultyService,
+	userSvc service.UserService,
+	minioClient *database.MinioClient,
+) *CertificateHandler {
+	return &CertificateHandler{
+		certificateService: certSvc,
+		universityService:  uniSvc,
+		facultyService:     facultySvc,
+		userService:        userSvc,
+		minioClient:        minioClient,
+	}
 }
 
 func (h *CertificateHandler) CreateCertificate(c *gin.Context) {
-	var req models.CreateCertificateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if errs, ok := common.ParseValidationError(err); ok {
-			c.JSON(http.StatusBadRequest, gin.H{"errors": errs})
-			return
-		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
+	claims, ok := c.MustGet("claims").(*utils.CustomClaims)
+	if !ok || claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không xác thực được người dùng"})
 		return
 	}
 
-	resp, err := h.certificateService.CreateCertificate(c.Request.Context(), &req)
+	var req models.CreateCertificateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu đầu vào không hợp lệ", "chi_tiet": err.Error()})
+		return
+	}
+
+	res, err := h.certificateService.CreateCertificate(c.Request.Context(), claims, &req)
 	if err != nil {
 		switch err {
 		case common.ErrInvalidUserID:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "ID người dùng không hợp lệ"})
-			return
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ID sinh viên không hợp lệ"})
 		case common.ErrUserNotExisted:
-			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy user"})
-			return
+			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy sinh viên"})
+		case common.ErrFacultyNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy khoa của sinh viên"})
+		case common.ErrInvalidToken:
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
+		case common.ErrUniversityNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy trường tương ứng"})
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống", "chi_tiet": err.Error()})
 		}
-	}
-
-	c.JSON(http.StatusCreated, gin.H{"data": resp})
-}
-func (h *CertificateHandler) GetAllCertificates(c *gin.Context) {
-	certs, err := h.certificateService.GetAllCertificates(c.Request.Context())
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	var resp []models.CertificateResponse
-	for _, cert := range certs {
-		resp = append(resp, models.CertificateResponse{
-			ID:              cert.ID.Hex(),
-			UserID:          cert.UserID.Hex(),
-			StudentCode:     cert.StudentCode,
-			CertificateType: cert.CertificateType,
-			Name:            cert.Name,
-			Issuer:          cert.Issuer,
-			SerialNumber:    cert.SerialNumber,
-			RegNo:           cert.RegNo,
-			Signed:          cert.Signed,
-			CreatedAt:       cert.CreatedAt,
-			UpdatedAt:       cert.UpdatedAt,
+	// Thành công
+	c.JSON(http.StatusCreated, gin.H{
+		"data": res})
+}
+
+func (h *CertificateHandler) GetAllCertificates(c *gin.Context) {
+	certs, err := h.certificateService.GetAllCertificates(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":    "Lỗi hệ thống",
+			"chi_tiet": err.Error(),
 		})
+		return
 	}
 
-	c.JSON(200, gin.H{"data": resp})
+	c.JSON(http.StatusOK, gin.H{
+		"data": certs,
+	})
+
 }
 
 func (h *CertificateHandler) GetCertificateByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "ID không hợp lệ"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID certificate không hợp lệ"})
 		return
 	}
 
 	cert, err := h.certificateService.GetCertificateByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "Không tìm thấy chứng chỉ"})
-		return
-	}
-
-	resp := models.CertificateResponse{
-		ID:              cert.ID.Hex(),
-		UserID:          cert.UserID.Hex(),
-		StudentCode:     cert.StudentCode,
-		CertificateType: cert.CertificateType,
-		Name:            cert.Name,
-		Issuer:          cert.Issuer,
-		SerialNumber:    cert.SerialNumber,
-		RegNo:           cert.RegNo,
-		Signed:          cert.Signed,
-		CreatedAt:       cert.CreatedAt,
-		UpdatedAt:       cert.UpdatedAt,
-	}
-
-	c.JSON(200, gin.H{"data": resp})
-}
-func (h *CertificateHandler) DeleteCertificate(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := primitive.ObjectIDFromHex(idStr)
-	if err != nil {
-		c.JSON(400, gin.H{"error": "ID không hợp lệ"})
-		return
-	}
-
-	err = h.certificateService.DeleteCertificate(c.Request.Context(), id)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			c.JSON(404, gin.H{"error": "Không tìm thấy chứng chỉ"})
-			return
+		if errors.Is(err, common.ErrCertificateNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy certificate"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống", "chi_tiet": err.Error()})
 		}
-		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "Xóa chứng chỉ thành công"})
+	c.JSON(http.StatusOK, gin.H{
+		"data": cert,
+	})
+
+}
+
+func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
+	// Lấy claims từ token
+	claims, ok := c.MustGet("claims").(*utils.CustomClaims)
+	if !ok || claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không xác thực được người dùng"})
+		return
+	}
+
+	// Lấy file
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Vui lòng chọn file để tải lên"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".pdf" && ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Chỉ hỗ trợ file PDF, JPG, JPEG, PNG"})
+		return
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể mở file"})
+		return
+	}
+	defer src.Close()
+
+	fileData, err := io.ReadAll(src)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể đọc file"})
+		return
+	}
+
+	filename := file.Filename
+	parts := strings.Split(strings.TrimSuffix(filename, ext), "_")
+	if len(parts) != 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Tên file không đúng định dạng: UniversityCode_SerialNumber.[pdf|jpg|png]"})
+		return
+	}
+	universityCodeFromFile := parts[0]
+	serialNumber := parts[1]
+
+	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ (university ID)"})
+		return
+	}
+	university, err := h.universityService.GetUniversityByID(c.Request.Context(), universityID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không lấy được thông tin trường đại học"})
+		return
+	}
+
+	if university.UniversityCode != universityCodeFromFile {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Bạn không có quyền tải lên văn bằng cho trường khác"})
+		return
+	}
+
+	certificate, err := h.certificateService.GetCertificateBySerialNumber(c.Request.Context(), serialNumber)
+	if err != nil || certificate == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng với số serial đã cung cấp"})
+		return
+	}
+
+	if certificate.UniversityID != university.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Bạn không được phép cập nhật văn bằng này"})
+		return
+	}
+
+	filePath, err := h.certificateService.UploadCertificateFile(c.Request.Context(), certificate.ID, fileData, filename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Tải lên thất bại: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Tải file thành công",
+		"path":    filePath,
+	})
+}
+
+func (h *CertificateHandler) GetCertificateFile(c *gin.Context) {
+	ctx := c.Request.Context()
+	idParam := c.Param("id")
+
+	certificateID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+		return
+	}
+
+	certificate, err := h.certificateService.GetCertificateByID(ctx, certificateID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng"})
+		return
+	}
+
+	if certificate.Path == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Văn bằng chưa có file"})
+		return
+	}
+
+	object, err := h.minioClient.Client.GetObject(ctx, h.minioClient.Bucket, certificate.Path, minio.GetObjectOptions{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không đọc được file từ MinIO"})
+		return
+	}
+	defer object.Close()
+
+	fileData, err := io.ReadAll(object)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể đọc nội dung file"})
+		return
+	}
+
+	// Xác định content-type động
+	contentType := http.DetectContentType(fileData)
+
+	// Trả dữ liệu về client đúng định dạng
+	c.DataFromReader(http.StatusOK, int64(len(fileData)), contentType, bytes.NewReader(fileData), nil)
+}
+
+func (h *CertificateHandler) GetCertificatesByStudentID(c *gin.Context) {
+	ctx := c.Request.Context()
+	studentIDParam := c.Param("id")
+
+	studentID, err := primitive.ObjectIDFromHex(studentIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID sinh viên không hợp lệ"})
+		return
+	}
+
+	// Lấy thông tin sinh viên
+	user, err := h.userService.GetUserByID(ctx, studentID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy sinh viên"})
+		return
+	}
+
+	// Lấy thông tin faculty
+	faculty, err := h.facultyService.GetFacultyByCode(ctx, user.FacultyCode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tìm thấy khoa"})
+		return
+	}
+
+	// Lấy thông tin university
+	university, err := h.universityService.GetUniversityByCode(ctx, user.UniversityCode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tìm thấy trường đại học"})
+		return
+	}
+
+	// Lấy danh sách văn bằng
+	certificates, err := h.certificateService.GetCertificatesByUserID(ctx, studentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lấy danh sách văn bằng"})
+		return
+	}
+
+	var result []models.CertificateResponse
+	for _, cert := range certificates {
+		result = append(result, models.CertificateResponse{
+			ID:              cert.ID.Hex(),
+			UserID:          cert.UserID.Hex(),
+			StudentCode:     cert.StudentCode,
+			CertificateType: cert.CertificateType,
+			Name:            cert.Name,
+			SerialNumber:    cert.SerialNumber,
+			RegNo:           cert.RegNo,
+			Path:            cert.Path,
+			FacultyCode:     faculty.FacultyCode,
+			FacultyName:     faculty.FacultyName,
+			UniversityCode:  university.UniversityCode,
+			UniversityName:  university.UniversityName,
+			Signed:          cert.Signed,
+			CreatedAt:       cert.CreatedAt,
+			UpdatedAt:       cert.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (h *CertificateHandler) GetCertificatesOfCurrentUser(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	claimsVal, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không xác thực được người dùng"})
+		return
+	}
+
+	claims, ok := claimsVal.(*utils.CustomClaims) // <- ép kiểu đúng: con trỏ
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
+		return
+	}
+
+	// Parse user_id từ string sang ObjectID
+	userID, err := primitive.ObjectIDFromHex(claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id trong token không hợp lệ"})
+		return
+	}
+
+	// Lấy thông tin sinh viên
+	user, err := h.userService.GetUserByID(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy sinh viên"})
+		return
+	}
+
+	// Lấy thông tin khoa
+	faculty, err := h.facultyService.GetFacultyByCode(ctx, user.FacultyCode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tìm thấy khoa"})
+		return
+	}
+
+	// Lấy thông tin trường đại học
+	university, err := h.universityService.GetUniversityByCode(ctx, user.UniversityCode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tìm thấy trường đại học"})
+		return
+	}
+
+	// Lấy danh sách văn bằng theo userID
+	certificates, err := h.certificateService.GetCertificatesByUserID(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lấy danh sách văn bằng"})
+		return
+	}
+
+	// Chuẩn bị response
+	var result []models.CertificateResponse
+	for _, cert := range certificates {
+		result = append(result, models.CertificateResponse{
+			ID:              cert.ID.Hex(),
+			UserID:          cert.UserID.Hex(),
+			StudentCode:     cert.StudentCode,
+			CertificateType: cert.CertificateType,
+			Name:            cert.Name,
+			SerialNumber:    cert.SerialNumber,
+			RegNo:           cert.RegNo,
+			Path:            cert.Path,
+			FacultyCode:     faculty.FacultyCode,
+			FacultyName:     faculty.FacultyName,
+			UniversityCode:  university.UniversityCode,
+			UniversityName:  university.UniversityName,
+			Signed:          cert.Signed,
+			CreatedAt:       cert.CreatedAt,
+			UpdatedAt:       cert.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": result})
 }

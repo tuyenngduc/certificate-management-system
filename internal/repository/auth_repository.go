@@ -22,6 +22,7 @@ type AuthRepository interface {
 	UpdatePassword(ctx context.Context, accountID primitive.ObjectID, newHash string) error
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.Account, error)
 	FindPersonalAccountByUserID(ctx context.Context, userID primitive.ObjectID) (*models.Account, error)
+	FindByRole(ctx context.Context, role string) ([]models.Account, error)
 }
 
 type authRepository struct {
@@ -137,4 +138,19 @@ func (r *authRepository) FindPersonalAccountByUserID(ctx context.Context, userID
 		return nil, err
 	}
 	return &account, nil
+}
+
+func (r *authRepository) FindByRole(ctx context.Context, role string) ([]models.Account, error) {
+	filter := bson.M{"role": role}
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var accounts []models.Account
+	if err = cursor.All(ctx, &accounts); err != nil {
+		return nil, err
+	}
+	return accounts, nil
 }

@@ -27,4 +27,7 @@ var (
 	//Faculty
 	ErrFacultyNotFound   = errors.New("faculty_not_found")
 	ErrFacultyCodeExists = errors.New("faculty_code_existed")
+
+	//Certificate
+	ErrCertificateNotFound = errors.New("certificate_not_found")
 )

@@ -17,6 +17,7 @@ type FacultyRepository interface {
 	FindAllByUniversityID(ctx context.Context, universityID primitive.ObjectID) ([]*models.Faculty, error)
 	DeleteByID(ctx context.Context, id primitive.ObjectID) error
 	UpdateFaculty(ctx context.Context, id primitive.ObjectID, update bson.M) error
+	FindByFacultyCode(ctx context.Context, code string) (*models.Faculty, error)
 }
 
 type facultyRepository struct {
@@ -101,4 +102,16 @@ func (r *facultyRepository) DeleteByID(ctx context.Context, id primitive.ObjectI
 		return common.ErrFacultyNotFound
 	}
 	return nil
+}
+func (r *facultyRepository) FindByFacultyCode(ctx context.Context, code string) (*models.Faculty, error) {
+	filter := bson.M{"faculty_code": code}
+	var faculty models.Faculty
+	err := r.col.FindOne(ctx, filter).Decode(&faculty)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &faculty, nil
 }

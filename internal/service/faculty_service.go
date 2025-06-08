@@ -18,6 +18,7 @@ type FacultyService interface {
 	UpdateFaculty(ctx context.Context, idStr string, req *models.UpdateFacultyRequest) (*models.Faculty, error)
 	DeleteFaculty(ctx context.Context, idStr string) error
 	GetFacultyByID(ctx context.Context, id primitive.ObjectID) (*models.FacultyResponse, error)
+	GetFacultyByCode(ctx context.Context, code string) (*models.Faculty, error)
 	CreateFaculty(ctx context.Context, claims *utils.CustomClaims, req *models.CreateFacultyRequest) (*models.FacultyResponse, error)
 }
 
@@ -65,6 +66,9 @@ func (s *facultyService) CreateFaculty(ctx context.Context, claims *utils.Custom
 		FacultyName: faculty.FacultyName,
 		CreatedAt:   faculty.CreatedAt.Format(time.RFC3339),
 	}, nil
+}
+func (s *facultyService) GetFacultyByCode(ctx context.Context, code string) (*models.Faculty, error) {
+	return s.facultyRepo.FindByFacultyCode(ctx, code)
 }
 
 func (s *facultyService) GetAllFaculties(ctx context.Context, universityID primitive.ObjectID) ([]*models.Faculty, error) {

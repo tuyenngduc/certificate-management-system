@@ -18,6 +18,8 @@ type UniversityService interface {
 	ApproveOrRejectUniversity(ctx context.Context, idStr string, action string) error
 	GetAllUniversities(ctx context.Context) ([]*models.University, error)
 	GetUniversitiesByStatus(ctx context.Context, status string) ([]*models.University, error)
+	GetUniversityByID(ctx context.Context, id primitive.ObjectID) (*models.University, error)
+	GetUniversityByCode(ctx context.Context, code string) (*models.University, error)
 }
 
 type universityService struct {
@@ -36,6 +38,17 @@ func NewUniversityService(
 		authRepo:       authRepo,
 		emailSender:    emailSender,
 	}
+}
+
+func (s *universityService) GetUniversityByID(ctx context.Context, id primitive.ObjectID) (*models.University, error) {
+	university, err := s.universityRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if university == nil {
+		return nil, fmt.Errorf("không tìm thấy trường đại học")
+	}
+	return university, nil
 }
 
 func (s *universityService) CreateUniversity(ctx context.Context, req *models.CreateUniversityRequest) error {
@@ -140,4 +153,7 @@ func (s *universityService) GetAllUniversities(ctx context.Context) ([]*models.U
 }
 func (s *universityService) GetUniversitiesByStatus(ctx context.Context, status string) ([]*models.University, error) {
 	return s.universityRepo.GetUniversitiesByStatus(ctx, status)
+}
+func (s *universityService) GetUniversityByCode(ctx context.Context, code string) (*models.University, error) {
+	return s.universityRepo.GetUniversityByCode(ctx, code)
 }

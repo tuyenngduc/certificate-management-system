@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"strconv"
@@ -16,14 +17,26 @@ import (
 )
 
 type AuthHandler struct {
-	authService service.AuthService
+	authService       service.AuthService
+	universityService service.UniversityService
+	userService       service.UserService
+	facultyService    service.FacultyService
 }
 
-func NewAuthHandler(authService service.AuthService) *AuthHandler {
+func NewAuthHandler(
+	authService service.AuthService,
+	universityService service.UniversityService,
+	userService service.UserService,
+	facultyService service.FacultyService,
+) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
+		authService:       authService,
+		universityService: universityService,
+		userService:       userService,
+		facultyService:    facultyService,
 	}
 }
+
 func (h *AuthHandler) GetAllAccounts(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -223,4 +236,104 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "Đổi mật khẩu thành công"})
+}
+
+func (h *AuthHandler) GetUniversityAdmins(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// Lấy danh sách account có role = university_admin
+	adminAccounts, err := h.authService.GetAccountsByRole(ctx, "university_admin")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi khi lấy tài khoản"})
+		return
+	}
+
+	type AdminWithUniversityInfo struct {
+		ID primitive.ObjectID `json:"id"`
+
+		PersonalEmail  string `json:"personal_email"`
+		UniversityCode string `json:"university_code"`
+		UniversityName string `json:"university_name"`
+		Address        string `json:"address"`
+		Status         string `json:"status"`
+	}
+
+	var result []AdminWithUniversityInfo
+
+	for _, acc := range adminAccounts {
+		// Lấy thông tin trường theo acc.UniversityID
+		univ, err := h.universityService.GetUniversityByID(ctx, acc.UniversityID)
+		if err != nil {
+			// Có thể bỏ qua account nếu lỗi lấy trường, hoặc handle theo ý bạn
+			continue
+		}
+
+		item := AdminWithUniversityInfo{
+			ID:             acc.ID,
+			PersonalEmail:  acc.PersonalEmail,
+			UniversityCode: univ.UniversityCode,
+			UniversityName: univ.UniversityName,
+			Address:        univ.Address,
+			Status:         univ.Status,
+		}
+		result = append(result, item)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+type AccountWithDetailsResponse struct {
+	ID             string `json:"id"`
+	PersonalEmail  string `json:"personal_email"`
+	StudentCode    string `json:"student_code"`
+	StudentName    string `json:"student_name"`
+	UniversityName string `json:"university_name"`
+	FacultyName    string `json:"faculty_name"`
+}
+
+func (h *AuthHandler) GetStudentAccounts(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// Lấy role "student"
+	accounts, err := h.authService.GetAccountsByRole(ctx, "student")
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	fmt.Println("accounts count:", len(accounts))
+
+	var result []AccountWithDetailsResponse
+
+	for _, acc := range accounts {
+		user, err := h.userService.GetUserByID(ctx, acc.StudentID)
+		if err != nil {
+			// Nếu không tìm thấy user, bỏ qua hoặc xử lý tùy ý
+			continue
+		}
+
+		// Lấy university qua user.UniversityID chứ không phải acc.UniversityID
+		univ, err := h.universityService.GetUniversityByCode(ctx, user.UniversityCode)
+		if err != nil {
+			// Không tìm thấy university, có thể bỏ qua hoặc xử lý
+			continue
+		}
+
+		faculty, err := h.facultyService.GetFacultyByCode(ctx, user.FacultyCode)
+		if err != nil {
+			continue
+		}
+
+		item := AccountWithDetailsResponse{
+			ID:             acc.ID.Hex(),
+			PersonalEmail:  acc.PersonalEmail,
+			StudentCode:    user.StudentCode,
+			StudentName:    user.FullName,
+			UniversityName: univ.UniversityName,
+			FacultyName:    faculty.FacultyName,
+		}
+
+		result = append(result, item)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": result})
 }

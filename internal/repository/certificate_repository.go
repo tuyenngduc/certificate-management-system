@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,6 +15,9 @@ type CertificateRepository interface {
 	GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.Certificate, error)
 	DeleteCertificate(ctx context.Context, id primitive.ObjectID) error
 	CreateCertificate(ctx context.Context, cert *models.Certificate) error
+	UpdateCertificatePath(ctx context.Context, certificateID primitive.ObjectID, path string) error
+	FindBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error)
+	FindCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error)
 }
 type certificateRepository struct {
 	col *mongo.Collection
@@ -60,4 +64,35 @@ func (r *certificateRepository) DeleteCertificate(ctx context.Context, id primit
 		return mongo.ErrNoDocuments
 	}
 	return nil
+}
+func (r *certificateRepository) UpdateCertificatePath(ctx context.Context, certificateID primitive.ObjectID, path string) error {
+	filter := bson.M{"_id": certificateID}
+	update := bson.M{
+		"$set": bson.M{
+			"path":       path,
+			"updated_at": time.Now(),
+		},
+	}
+	_, err := r.col.UpdateOne(ctx, filter, update)
+	return err
+}
+func (r *certificateRepository) FindBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error) {
+	var cert models.Certificate
+	err := r.col.FindOne(ctx, bson.M{"serial_number": serial}).Decode(&cert)
+	if err != nil {
+		return nil, err
+	}
+	return &cert, nil
+}
+func (r *certificateRepository) FindCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error) {
+	filter := bson.M{"user_id": userID}
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	var certificates []*models.Certificate
+	if err := cursor.All(ctx, &certificates); err != nil {
+		return nil, err
+	}
+	return certificates, nil
 }

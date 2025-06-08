@@ -19,6 +19,7 @@ type UniversityRepository interface {
 	CreateUniversity(ctx context.Context, uni *models.University) error
 	GetAllUniversities(ctx context.Context) ([]*models.University, error)
 	GetUniversitiesByStatus(ctx context.Context, status string) ([]*models.University, error)
+	GetUniversityByCode(ctx context.Context, code string) (*models.University, error)
 }
 
 type universityRepository struct {
@@ -28,6 +29,14 @@ type universityRepository struct {
 func NewUniversityRepository(db *mongo.Database) UniversityRepository {
 	col := db.Collection("universities")
 	return &universityRepository{col: col}
+}
+func (r *universityRepository) GetUniversityByCode(ctx context.Context, code string) (*models.University, error) {
+	var university models.University
+	err := r.col.FindOne(ctx, bson.M{"university_code": code}).Decode(&university)
+	if err != nil {
+		return nil, err
+	}
+	return &university, nil
 }
 
 func (r *universityRepository) CreateUniversity(ctx context.Context, uni *models.University) error {

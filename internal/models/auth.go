@@ -16,6 +16,7 @@ type Account struct {
 	CreatedAt     time.Time          `bson:"created_at"`
 	Role          string             `bson:"role"`
 }
+
 type AccountResponse struct {
 	ID            primitive.ObjectID  `json:"id"`
 	StudentID     *primitive.ObjectID `json:"student_id,omitempty"`
