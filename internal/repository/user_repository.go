@@ -70,7 +70,10 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 	}
 
 	if params.Faculty != "" {
-		filter["faculty_id"] = bson.M{"$regex": params.Faculty, "$options": "i"}
+		facultyID, err := primitive.ObjectIDFromHex(params.Faculty)
+		if err == nil {
+			filter["faculty_id"] = facultyID
+		}
 	}
 
 	skip := int64((params.Page - 1) * params.PageSize)
