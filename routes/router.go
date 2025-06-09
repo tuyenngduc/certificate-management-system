@@ -44,12 +44,13 @@ func SetupRouter(
 
 	// ===== User routes =====
 	userGroup := api.Group("/users")
-	userGroup.Use(middleware.JWTAuthMiddleware()) // Bảo vệ toàn bộ route users
+	userGroup.Use(middleware.JWTAuthMiddleware())
 	userGroup.POST("/import-excel", userHandler.ImportUsersFromExcel)
 	userGroup.GET("", userHandler.GetAllUsers)
 	userGroup.POST("", userHandler.CreateUser)
 	userGroup.GET("/:id", userHandler.GetUserByID)
 	userGroup.PUT("/:id", userHandler.UpdateUser)
+	userGroup.GET("/search", userHandler.SearchUsers)
 	userGroup.DELETE("/:id", userHandler.DeleteUser)
 	userGroup.GET("/faculty/:faculty_code", userHandler.GetUsersByFacultyCode)
 
