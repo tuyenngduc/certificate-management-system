@@ -256,10 +256,8 @@ func (h *CertificateHandler) GetCertificateFile(c *gin.Context) {
 		return
 	}
 
-	// Xác định content-type động
 	contentType := http.DetectContentType(fileData)
 
-	// Trả dữ liệu về client đúng định dạng
 	c.DataFromReader(http.StatusOK, int64(len(fileData)), contentType, bytes.NewReader(fileData), nil)
 }
 
@@ -398,4 +396,30 @@ func (h *CertificateHandler) GetCertificatesOfCurrentUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (h *CertificateHandler) SearchCertificates(c *gin.Context) {
+	var params models.SearchCertificateParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.PageSize <= 0 {
+		params.PageSize = 10
+	}
+	certs, total, err := h.certificateService.SearchCertificates(c.Request.Context(), params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":       certs,
+		"total":      total,
+		"page":       params.Page,
+		"page_size":  params.PageSize,
+		"total_page": (total + int64(params.PageSize) - 1) / int64(params.PageSize),
+	})
 }

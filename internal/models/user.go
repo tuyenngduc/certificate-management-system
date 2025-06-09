@@ -46,9 +46,9 @@ type SearchUserParams struct {
 	Email       string `form:"email"`
 	Faculty     string `form:"faculty"`
 	Course      string `form:"course" `
-
-	Page     int `form:"page,default=1"`
-	PageSize int `form:"page_size,default=10"`
+	Status      *bool  `form:"status"`
+	Page        int    `form:"page,default=1"`
+	PageSize    int    `form:"page_size,default=10"`
 }
 
 type UpdateUserRequest struct {

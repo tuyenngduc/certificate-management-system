@@ -154,3 +154,26 @@ func (r *authRepository) FindByRole(ctx context.Context, role string) ([]models.
 	}
 	return accounts, nil
 }
+func (r *certificateRepository) Find(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error) {
+	skip := int64((page - 1) * pageSize)
+	limit := int64(pageSize)
+
+	total, err := r.col.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	opts := options.Find().SetSkip(skip).SetLimit(limit)
+	cursor, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var certs []*models.Certificate
+	if err := cursor.All(ctx, &certs); err != nil {
+		return nil, 0, err
+	}
+
+	return certs, total, nil
+}

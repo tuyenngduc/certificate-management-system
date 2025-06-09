@@ -13,7 +13,7 @@ type Certificate struct {
 	FacultyID       primitive.ObjectID `bson:"faculty_id"`
 	UniversityID    primitive.ObjectID `bson:"university_id"`
 	StudentCode     string             `bson:"student_code"`
-	CertificateType string             `bson:"certificate_type"`
+	CertificateType string             `bson:"certificate_type"` //1 xuất săc, //2 giỏi, //3 khóa //4trung bình //5 yếu
 	Name            string             `bson:"name"`
 	SerialNumber    string             `bson:"serial_number"`
 	RegNo           string             `bson:"registration_number"`
@@ -49,11 +49,12 @@ type CertificateResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
-
-type CertificateVerification struct {
-	ID               primitive.ObjectID `bson:"_id,omitempty"`
-	CertificateID    primitive.ObjectID `bson:"certificate_id"`
-	VerificationCode string             `bson:"verification_code"`
-	ExpiresAt        time.Time          `bson:"expires_at"`
-	CreatedAt        time.Time          `bson:"created_at"`
+type SearchCertificateParams struct {
+	StudentCode     string `form:"student_code"`
+	FacultyCode     string `form:"faculty_code"`
+	Course          string `form:"course"`
+	Signed          *bool  `form:"signed"`
+	CertificateType string `form:"certificate_type"`
+	Page            int    `form:"page,default=1"`
+	PageSize        int    `form:"page_size,default=10"`
 }

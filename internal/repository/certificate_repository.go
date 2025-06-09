@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type CertificateRepository interface {
@@ -18,6 +19,7 @@ type CertificateRepository interface {
 	UpdateCertificatePath(ctx context.Context, certificateID primitive.ObjectID, path string) error
 	FindBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error)
 	FindCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error)
+	FindCertificate(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error)
 }
 type certificateRepository struct {
 	col *mongo.Collection
@@ -95,4 +97,24 @@ func (r *certificateRepository) FindCertificatesByUserID(ctx context.Context, us
 		return nil, err
 	}
 	return certificates, nil
+}
+func (r *certificateRepository) FindCertificate(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error) {
+	skip := int64((page - 1) * pageSize)
+	limit := int64(pageSize)
+	total, err := r.col.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	cursor, err := r.col.Find(ctx, filter, options.Find().SetSkip(skip).SetLimit(limit))
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var certs []*models.Certificate
+	if err := cursor.All(ctx, &certs); err != nil {
+		return nil, 0, err
+	}
+	return certs, total, nil
 }

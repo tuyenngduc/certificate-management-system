@@ -64,6 +64,7 @@ func SetupRouter(
 	certificateGroup.GET("/file/:id", certificateHandler.GetCertificateFile)
 	certificateGroup.GET("/student/:id", certificateHandler.GetCertificatesByStudentID)
 	certificateGroup.GET("/my-certificates", certificateHandler.GetCertificatesOfCurrentUser)
+	certificateGroup.GET("/search", certificateHandler.SearchCertificates)
 
 	// ===== University routes =====
 	universityGroup := api.Group("/universities")

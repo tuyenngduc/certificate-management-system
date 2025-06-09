@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
@@ -12,6 +13,7 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
 	"github.com/tuyenngduc/certificate-management-system/pkg/database"
 	"github.com/tuyenngduc/certificate-management-system/utils"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -23,6 +25,7 @@ type CertificateService interface {
 	GetCertificateBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error)
 	GetCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error)
 	CreateCertificate(ctx context.Context, claims *utils.CustomClaims, req *models.CreateCertificateRequest) (*models.CertificateResponse, error)
+	SearchCertificates(ctx context.Context, params models.SearchCertificateParams) ([]*models.CertificateResponse, int64, error)
 }
 
 type certificateService struct {
@@ -251,4 +254,81 @@ func (s *certificateService) GetCertificateBySerialNumber(ctx context.Context, s
 }
 func (s *certificateService) GetCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error) {
 	return s.certificateRepo.FindCertificatesByUserID(ctx, userID)
+}
+
+func (s *certificateService) SearchCertificates(ctx context.Context, params models.SearchCertificateParams) ([]*models.CertificateResponse, int64, error) {
+	filter := bson.M{}
+
+	if params.StudentCode != "" {
+		filter["student_code"] = bson.M{"$regex": params.StudentCode, "$options": "i"}
+	}
+	if params.CertificateType != "" {
+		filter["certificate_type"] = bson.M{"$regex": params.CertificateType, "$options": "i"}
+	}
+	if params.Signed != nil {
+		filter["signed"] = *params.Signed
+	}
+
+	// Filter by FacultyCode nếu được truyền vào
+	if params.FacultyCode != "" {
+		faculty, err := s.facultyRepo.FindByFacultyCode(ctx, params.FacultyCode)
+		if err != nil {
+			return nil, 0, fmt.Errorf("faculty not found: %w", err)
+		}
+		if faculty == nil {
+			return nil, 0, fmt.Errorf("faculty not found with code: %s", params.FacultyCode)
+		}
+		filter["faculty_id"] = faculty.ID
+	}
+
+	// Truy vấn danh sách certificate
+	certs, total, err := s.certificateRepo.FindCertificate(ctx, filter, params.Page, params.PageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var results []*models.CertificateResponse
+	for _, cert := range certs {
+		// Filter theo Course nếu có
+		if params.Course != "" {
+			user, err := s.userRepo.GetUserByID(ctx, cert.UserID)
+			if err != nil || user == nil {
+				continue
+			}
+			if !strings.Contains(strings.ToLower(user.Course), strings.ToLower(params.Course)) {
+				continue
+			}
+		}
+
+		// Lấy Faculty, University để hiển thị thông tin
+		faculty, err := s.facultyRepo.FindByID(ctx, cert.FacultyID)
+		if err != nil || faculty == nil {
+			continue
+		}
+		university, err := s.universityRepo.FindByID(ctx, cert.UniversityID)
+		if err != nil || university == nil {
+			continue
+		}
+
+		resp := &models.CertificateResponse{
+			ID:              cert.ID.Hex(),
+			UserID:          cert.UserID.Hex(),
+			StudentCode:     cert.StudentCode,
+			CertificateType: cert.CertificateType,
+			Name:            cert.Name,
+			SerialNumber:    cert.SerialNumber,
+			RegNo:           cert.RegNo,
+			Path:            cert.Path,
+			FacultyCode:     faculty.FacultyCode,
+			FacultyName:     faculty.FacultyName,
+			UniversityCode:  university.UniversityCode,
+			UniversityName:  university.UniversityName,
+			Signed:          cert.Signed,
+			CreatedAt:       cert.CreatedAt,
+			UpdatedAt:       cert.UpdatedAt,
+		}
+		results = append(results, resp)
+	}
+
+	return results, total, nil
 }
