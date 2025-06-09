@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ type UserService interface {
 	CreateUser(ctx context.Context, claims *utils.CustomClaims, req *models.CreateUserRequest) (*models.UserResponse, error)
 	DeleteUser(ctx context.Context, id primitive.ObjectID) error
 	UpdateUser(ctx context.Context, id primitive.ObjectID, req models.UpdateUserRequest) error
+	GetUsersByFacultyCode(ctx context.Context, code string) ([]models.UserResponse, error)
 }
 
 type userService struct {
@@ -305,4 +307,38 @@ func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req
 
 func (s *userService) DeleteUser(ctx context.Context, id primitive.ObjectID) error {
 	return s.userRepo.DeleteUser(ctx, id)
+}
+func (s *userService) GetUsersByFacultyCode(ctx context.Context, code string) ([]models.UserResponse, error) {
+	// Tìm faculty theo code
+	faculty, err := s.facultyRepo.FindByFacultyCode(ctx, code)
+	if err != nil || faculty == nil {
+		return nil, fmt.Errorf("không tìm thấy khoa với mã %s", code)
+	}
+
+	// Lấy user theo FacultyID
+	users, err := s.userRepo.FindUsersByFacultyID(ctx, faculty.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map sang response
+	var responses []models.UserResponse
+	for _, u := range users {
+		university, _ := s.universityRepo.FindByID(ctx, u.UniversityID)
+
+		resp := models.UserResponse{
+			ID:             u.ID,
+			StudentCode:    u.StudentCode,
+			FullName:       u.FullName,
+			Email:          u.Email,
+			Course:         u.Course,
+			Status:         u.Status,
+			FacultyCode:    faculty.FacultyCode,
+			FacultyName:    faculty.FacultyName,
+			UniversityCode: university.UniversityCode,
+			UniversityName: university.UniversityName,
+		}
+		responses = append(responses, resp)
+	}
+	return responses, nil
 }

@@ -313,3 +313,18 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 		})
 	}
 }
+func (h *UserHandler) GetUsersByFacultyCode(c *gin.Context) {
+	code := c.Param("faculty_code")
+	if code == "" {
+		c.JSON(400, gin.H{"error": "Thiếu mã khoa"})
+		return
+	}
+
+	users, err := h.userService.GetUsersByFacultyCode(c.Request.Context(), code)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"data": users})
+}

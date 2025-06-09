@@ -22,6 +22,7 @@ type UserRepository interface {
 	FindByStudentCode(ctx context.Context, studentID string) (*models.User, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	ExistsByStudentCodeAndUniversityID(ctx context.Context, studentCode string, universityID primitive.ObjectID) (bool, error)
+	FindUsersByFacultyID(ctx context.Context, facultyID primitive.ObjectID) ([]*models.User, error)
 	FindByStudentCodeAndUniversityID(ctx context.Context, studentCode string, universityID primitive.ObjectID) (*models.User, error)
 }
 type userRepository struct {
@@ -70,7 +71,6 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 		filter["email"] = bson.M{"$regex": params.Email, "$options": "i"}
 	}
 
-	// Tìm theo faculty_code (là chuỗi, không phải ObjectID)
 	if params.Faculty != "" {
 		filter["faculty_code"] = bson.M{"$regex": params.Faculty, "$options": "i"}
 	}
@@ -197,4 +197,18 @@ func (r *userRepository) FindByStudentCodeAndUniversityID(ctx context.Context, s
 		return nil, err
 	}
 	return &user, nil
+}
+func (r *userRepository) FindUsersByFacultyID(ctx context.Context, facultyID primitive.ObjectID) ([]*models.User, error) {
+	filter := bson.M{"faculty_id": facultyID}
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var users []*models.User
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, err
+	}
+	return users, nil
 }

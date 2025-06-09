@@ -49,9 +49,9 @@ func SetupRouter(
 	userGroup.GET("", userHandler.GetAllUsers)
 	userGroup.POST("", userHandler.CreateUser)
 	userGroup.GET("/:id", userHandler.GetUserByID)
-	userGroup.GET("/search", userHandler.SearchUsers)
 	userGroup.PUT("/:id", userHandler.UpdateUser)
 	userGroup.DELETE("/:id", userHandler.DeleteUser)
+	userGroup.GET("/faculty/:faculty_code", userHandler.GetUsersByFacultyCode)
 
 	// ===== Certificate routes =====
 	certificateGroup := api.Group("/certificates")
