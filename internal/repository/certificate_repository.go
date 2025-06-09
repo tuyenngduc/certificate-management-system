@@ -18,8 +18,9 @@ type CertificateRepository interface {
 	CreateCertificate(ctx context.Context, cert *models.Certificate) error
 	UpdateCertificatePath(ctx context.Context, certificateID primitive.ObjectID, path string) error
 	FindBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error)
-	FindCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error)
+	FindLatestCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.Certificate, error)
 	FindCertificate(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error)
+	UpdateVerificationCode(ctx context.Context, id primitive.ObjectID, code string, expired time.Time) error
 }
 type certificateRepository struct {
 	col *mongo.Collection
@@ -86,18 +87,20 @@ func (r *certificateRepository) FindBySerialNumber(ctx context.Context, serial s
 	}
 	return &cert, nil
 }
-func (r *certificateRepository) FindCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error) {
+func (r *certificateRepository) FindLatestCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.Certificate, error) {
 	filter := bson.M{"user_id": userID}
-	cursor, err := r.col.Find(ctx, filter)
+	opts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}}) // sắp xếp giảm dần theo created_at để lấy mới nhất
+	var certificate models.Certificate
+	err := r.col.FindOne(ctx, filter, opts).Decode(&certificate)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
 		return nil, err
 	}
-	var certificates []*models.Certificate
-	if err := cursor.All(ctx, &certificates); err != nil {
-		return nil, err
-	}
-	return certificates, nil
+	return &certificate, nil
 }
+
 func (r *certificateRepository) FindCertificate(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error) {
 	skip := int64((page - 1) * pageSize)
 	limit := int64(pageSize)
@@ -117,4 +120,14 @@ func (r *certificateRepository) FindCertificate(ctx context.Context, filter bson
 		return nil, 0, err
 	}
 	return certs, total, nil
+}
+func (r *certificateRepository) UpdateVerificationCode(ctx context.Context, id primitive.ObjectID, code string, expired time.Time) error {
+	update := bson.M{
+		"$set": bson.M{
+			"verification_code": code,
+			"code_expired_at":   expired,
+		},
+	}
+	_, err := r.col.UpdateByID(ctx, id, update)
+	return err
 }

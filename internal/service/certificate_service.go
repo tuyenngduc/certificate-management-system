@@ -23,8 +23,10 @@ type CertificateService interface {
 	UploadCertificateFile(ctx context.Context, certificateID primitive.ObjectID, fileData []byte, filename string) (string, error)
 	GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.CertificateResponse, error)
 	GetCertificateBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error)
-	GetCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error)
+	GetCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.CertificateResponse, error)
 	CreateCertificate(ctx context.Context, claims *utils.CustomClaims, req *models.CreateCertificateRequest) (*models.CertificateResponse, error)
+	GenerateVerificationCode(ctx context.Context, certID primitive.ObjectID) (string, error)
+
 	SearchCertificates(ctx context.Context, params models.SearchCertificateParams) ([]*models.CertificateResponse, int64, error)
 }
 
@@ -53,18 +55,16 @@ func NewCertificateService(
 }
 
 func (s *certificateService) CreateCertificate(ctx context.Context, claims *utils.CustomClaims, req *models.CreateCertificateRequest) (*models.CertificateResponse, error) {
-	userID, err := primitive.ObjectIDFromHex(req.UserID)
-	if err != nil {
-		return nil, common.ErrInvalidUserID
-	}
-
-	user, err := s.userRepo.GetUserByID(ctx, userID)
-	if err != nil {
+	// Lấy user từ StudentCode
+	user, err := s.userRepo.FindByStudentCode(ctx, req.StudentCode)
+	if err != nil || user == nil {
 		return nil, common.ErrUserNotExisted
 	}
+
 	if user.FacultyID.IsZero() {
 		return nil, errors.New("người dùng chưa được gán khoa")
 	}
+
 	faculty, err := s.facultyRepo.FindByID(ctx, user.FacultyID)
 	if err != nil || faculty == nil {
 		return nil, common.ErrFacultyNotFound
@@ -80,9 +80,10 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 		return nil, common.ErrUniversityNotFound
 	}
 
+	// Tạo certificate
 	cert := &models.Certificate{
 		ID:              primitive.NewObjectID(),
-		UserID:          userID,
+		UserID:          user.ID,
 		FacultyID:       user.FacultyID,
 		UniversityID:    universityID,
 		StudentCode:     user.StudentCode,
@@ -252,8 +253,48 @@ func (s *certificateService) UploadCertificateFile(
 func (s *certificateService) GetCertificateBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error) {
 	return s.certificateRepo.FindBySerialNumber(ctx, serial)
 }
-func (s *certificateService) GetCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error) {
-	return s.certificateRepo.FindCertificatesByUserID(ctx, userID)
+func (s *certificateService) GetCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.CertificateResponse, error) {
+	cert, err := s.certificateRepo.FindLatestCertificateByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if cert == nil {
+		return nil, common.ErrCertificateNotFound
+	}
+
+	faculty, err := s.facultyRepo.FindByID(ctx, cert.FacultyID)
+	if err != nil || faculty == nil {
+		faculty = &models.Faculty{
+			FacultyCode: "N/A",
+			FacultyName: "Không xác định",
+		}
+	}
+
+	university, err := s.universityRepo.FindByID(ctx, cert.UniversityID)
+	if err != nil || university == nil {
+		university = &models.University{
+			UniversityCode: "N/A",
+			UniversityName: "Không xác định",
+		}
+	}
+
+	return &models.CertificateResponse{
+		ID:              cert.ID.Hex(),
+		UserID:          cert.UserID.Hex(),
+		StudentCode:     cert.StudentCode,
+		CertificateType: cert.CertificateType,
+		Name:            cert.Name,
+		SerialNumber:    cert.SerialNumber,
+		RegNo:           cert.RegNo,
+		Path:            cert.Path,
+		FacultyCode:     faculty.FacultyCode,
+		FacultyName:     faculty.FacultyName,
+		UniversityCode:  university.UniversityCode,
+		UniversityName:  university.UniversityName,
+		Signed:          cert.Signed,
+		CreatedAt:       cert.CreatedAt,
+		UpdatedAt:       cert.UpdatedAt,
+	}, nil
 }
 
 func (s *certificateService) SearchCertificates(ctx context.Context, params models.SearchCertificateParams) ([]*models.CertificateResponse, int64, error) {
@@ -289,13 +330,21 @@ func (s *certificateService) SearchCertificates(ctx context.Context, params mode
 
 	var results []*models.CertificateResponse
 	for _, cert := range certs {
-		// Filter theo Course nếu có
+		var user *models.User
+		var err error
+
 		if params.Course != "" {
-			user, err := s.userRepo.GetUserByID(ctx, cert.UserID)
+			user, err = s.userRepo.GetUserByID(ctx, cert.UserID)
 			if err != nil || user == nil {
 				continue
 			}
 			if !strings.Contains(strings.ToLower(user.Course), strings.ToLower(params.Course)) {
+				continue
+			}
+		} else {
+			// Lấy user nếu không filter course, để lấy tên
+			user, err = s.userRepo.GetUserByID(ctx, cert.UserID)
+			if err != nil || user == nil {
 				continue
 			}
 		}
@@ -314,6 +363,7 @@ func (s *certificateService) SearchCertificates(ctx context.Context, params mode
 			ID:              cert.ID.Hex(),
 			UserID:          cert.UserID.Hex(),
 			StudentCode:     cert.StudentCode,
+			StudentName:     user.FullName,
 			CertificateType: cert.CertificateType,
 			Name:            cert.Name,
 			SerialNumber:    cert.SerialNumber,
@@ -331,4 +381,14 @@ func (s *certificateService) SearchCertificates(ctx context.Context, params mode
 	}
 
 	return results, total, nil
+}
+func (s *certificateService) GenerateVerificationCode(ctx context.Context, certID primitive.ObjectID) (string, error) {
+	code := utils.GenerateRandomCode(8)         // VD: hàm tạo mã ngẫu nhiên
+	expiredAt := time.Now().Add(24 * time.Hour) // mã có hiệu lực 24h
+
+	err := s.certificateRepo.UpdateVerificationCode(ctx, certID, code, expiredAt)
+	if err != nil {
+		return "", err
+	}
+	return code, nil
 }

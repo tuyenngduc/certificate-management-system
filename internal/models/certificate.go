@@ -22,10 +22,13 @@ type Certificate struct {
 	SignedAt        time.Time          `bson:"signed_at,omitempty"`
 	CreatedAt       time.Time          `bson:"created_at"`
 	UpdatedAt       time.Time          `bson:"updated_at"`
+
+	VerificationCode string    `bson:"verification_code,omitempty"`
+	CodeExpiredAt    time.Time `bson:"code_expired_at,omitempty"`
 }
 
 type CreateCertificateRequest struct {
-	UserID          string `json:"user_id" binding:"required"`
+	StudentCode     string `json:"student_code" binding:"required"`
 	CertificateType string `json:"certificate_type" binding:"required"`
 	Name            string `json:"name" binding:"required"`
 	SerialNumber    string `json:"serial_number" binding:"required"`
@@ -36,6 +39,7 @@ type CertificateResponse struct {
 	ID              string    `json:"id"`
 	UserID          string    `json:"user_id"`
 	StudentCode     string    `json:"student_code"`
+	StudentName     string    `json:"student_name"`
 	CertificateType string    `json:"certificate_type"`
 	Name            string    `json:"name"`
 	SerialNumber    string    `json:"serial_number"`

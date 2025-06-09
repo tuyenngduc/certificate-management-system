@@ -224,17 +224,30 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 
 func (h *CertificateHandler) GetCertificateFile(c *gin.Context) {
 	ctx := c.Request.Context()
-	idParam := c.Param("id")
 
-	certificateID, err := primitive.ObjectIDFromHex(idParam)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
+	// Lấy claims từ context
+	claimsValue, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không tìm thấy thông tin xác thực"})
 		return
 	}
 
-	certificate, err := h.certificateService.GetCertificateByID(ctx, certificateID)
+	claims, ok := claimsValue.(*utils.CustomClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Thông tin xác thực không hợp lệ"})
+		return
+	}
+
+	userID, err := primitive.ObjectIDFromHex(claims.UserID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UserID không hợp lệ trong token"})
+		return
+	}
+
+	// Gọi service lấy 1 văn bằng theo userID
+	certificate, err := h.certificateService.GetCertificateByUserID(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng của người dùng"})
 		return
 	}
 
@@ -257,7 +270,6 @@ func (h *CertificateHandler) GetCertificateFile(c *gin.Context) {
 	}
 
 	contentType := http.DetectContentType(fileData)
-
 	c.DataFromReader(http.StatusOK, int64(len(fileData)), contentType, bytes.NewReader(fileData), nil)
 }
 
@@ -293,106 +305,28 @@ func (h *CertificateHandler) GetCertificatesByStudentID(c *gin.Context) {
 	}
 
 	// Lấy danh sách văn bằng
-	certificates, err := h.certificateService.GetCertificatesByUserID(ctx, studentID)
+	certificate, err := h.certificateService.GetCertificateByUserID(ctx, studentID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lấy danh sách văn bằng"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng của người dùng"})
 		return
 	}
 
-	var result []models.CertificateResponse
-	for _, cert := range certificates {
-		result = append(result, models.CertificateResponse{
-			ID:              cert.ID.Hex(),
-			UserID:          cert.UserID.Hex(),
-			StudentCode:     cert.StudentCode,
-			CertificateType: cert.CertificateType,
-			Name:            cert.Name,
-			SerialNumber:    cert.SerialNumber,
-			RegNo:           cert.RegNo,
-			Path:            cert.Path,
-			FacultyCode:     faculty.FacultyCode,
-			FacultyName:     faculty.FacultyName,
-			UniversityCode:  university.UniversityCode,
-			UniversityName:  university.UniversityName,
-			Signed:          cert.Signed,
-			CreatedAt:       cert.CreatedAt,
-			UpdatedAt:       cert.UpdatedAt,
-		})
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": result})
-}
-
-func (h *CertificateHandler) GetCertificatesOfCurrentUser(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	claimsVal, exists := c.Get("claims")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không xác thực được người dùng"})
-		return
-	}
-
-	claims, ok := claimsVal.(*utils.CustomClaims) // <- ép kiểu đúng: con trỏ
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
-		return
-	}
-
-	// Parse user_id từ string sang ObjectID
-	userID, err := primitive.ObjectIDFromHex(claims.UserID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id trong token không hợp lệ"})
-		return
-	}
-
-	// Lấy thông tin sinh viên
-	user, err := h.userService.GetUserByID(ctx, userID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy sinh viên"})
-		return
-	}
-
-	// Lấy thông tin khoa
-	faculty, err := h.facultyService.GetFacultyByCode(ctx, user.FacultyCode)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tìm thấy khoa"})
-		return
-	}
-
-	// Lấy thông tin trường đại học
-	university, err := h.universityService.GetUniversityByCode(ctx, user.UniversityCode)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tìm thấy trường đại học"})
-		return
-	}
-
-	// Lấy danh sách văn bằng theo userID
-	certificates, err := h.certificateService.GetCertificatesByUserID(ctx, userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lấy danh sách văn bằng"})
-		return
-	}
-
-	// Chuẩn bị response
-	var result []models.CertificateResponse
-	for _, cert := range certificates {
-		result = append(result, models.CertificateResponse{
-			ID:              cert.ID.Hex(),
-			UserID:          cert.UserID.Hex(),
-			StudentCode:     cert.StudentCode,
-			CertificateType: cert.CertificateType,
-			Name:            cert.Name,
-			SerialNumber:    cert.SerialNumber,
-			RegNo:           cert.RegNo,
-			Path:            cert.Path,
-			FacultyCode:     faculty.FacultyCode,
-			FacultyName:     faculty.FacultyName,
-			UniversityCode:  university.UniversityCode,
-			UniversityName:  university.UniversityName,
-			Signed:          cert.Signed,
-			CreatedAt:       cert.CreatedAt,
-			UpdatedAt:       cert.UpdatedAt,
-		})
+	result := models.CertificateResponse{
+		ID:              certificate.ID,
+		UserID:          certificate.UserID,
+		StudentCode:     certificate.StudentCode,
+		CertificateType: certificate.CertificateType,
+		Name:            certificate.Name,
+		SerialNumber:    certificate.SerialNumber,
+		RegNo:           certificate.RegNo,
+		Path:            certificate.Path,
+		FacultyCode:     faculty.FacultyCode,
+		FacultyName:     faculty.FacultyName,
+		UniversityCode:  university.UniversityCode,
+		UniversityName:  university.UniversityName,
+		Signed:          certificate.Signed,
+		CreatedAt:       certificate.CreatedAt,
+		UpdatedAt:       certificate.UpdatedAt,
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": result})
@@ -421,5 +355,24 @@ func (h *CertificateHandler) SearchCertificates(c *gin.Context) {
 		"page":       params.Page,
 		"page_size":  params.PageSize,
 		"total_page": (total + int64(params.PageSize) - 1) / int64(params.PageSize),
+	})
+}
+func (h *CertificateHandler) GenerateVerificationCode(c *gin.Context) {
+	idParam := c.Param("id")
+	certID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid certificate ID"})
+		return
+	}
+
+	code, err := h.certificateService.GenerateVerificationCode(c.Request.Context(), certID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":           "Verification code generated successfully",
+		"verification_code": code,
 	})
 }
