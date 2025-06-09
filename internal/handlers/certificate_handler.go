@@ -224,30 +224,17 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 
 func (h *CertificateHandler) GetCertificateFile(c *gin.Context) {
 	ctx := c.Request.Context()
+	idParam := c.Param("id")
 
-	// Lấy claims từ context
-	claimsValue, exists := c.Get("claims")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không tìm thấy thông tin xác thực"})
-		return
-	}
-
-	claims, ok := claimsValue.(*utils.CustomClaims)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Thông tin xác thực không hợp lệ"})
-		return
-	}
-
-	userID, err := primitive.ObjectIDFromHex(claims.UserID)
+	certificateID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "UserID không hợp lệ trong token"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
 		return
 	}
 
-	// Gọi service lấy 1 văn bằng theo userID
-	certificate, err := h.certificateService.GetCertificateByUserID(ctx, userID)
+	certificate, err := h.certificateService.GetCertificateByID(ctx, certificateID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng của người dùng"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng"})
 		return
 	}
 
@@ -270,6 +257,7 @@ func (h *CertificateHandler) GetCertificateFile(c *gin.Context) {
 	}
 
 	contentType := http.DetectContentType(fileData)
+
 	c.DataFromReader(http.StatusOK, int64(len(fileData)), contentType, bytes.NewReader(fileData), nil)
 }
 
