@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
@@ -215,53 +216,90 @@ func (s *userService) CreateUser(ctx context.Context, claims *utils.CustomClaims
 
 func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req models.UpdateUserRequest) error {
 	update := bson.M{}
+
+	// Lấy claims từ context
 	claimsVal := ctx.Value("claims")
 	claims, ok := claimsVal.(*utils.CustomClaims)
-	if !ok {
+	if !ok || claims == nil {
 		return common.ErrUnauthorized
 	}
 
+	// Parse university ID từ claims
 	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
 	if err != nil {
 		return common.ErrInvalidToken
 	}
-	if req.StudentCode != "" {
-		exist, err := s.userRepo.FindByStudentCodeAndUniversityID(ctx, req.StudentCode, universityID)
-		if err == nil && exist != nil && exist.ID != id {
-			return common.ErrStudentIDExists
+
+	// Cập nhật student_code nếu có và hợp lệ
+	if req.StudentCode != nil {
+		studentCode := strings.TrimSpace(*req.StudentCode)
+		if studentCode != "" {
+			exist, err := s.userRepo.FindByStudentCodeAndUniversityID(ctx, studentCode, universityID)
+			if err != nil {
+				return err // lỗi truy vấn DB
+			}
+			if exist != nil && exist.ID != id {
+				return common.ErrStudentIDExists
+			}
+			update["student_code"] = studentCode
 		}
-		update["student_code"] = req.StudentCode
 	}
 
-	if req.Email != "" {
-		exist, err := s.userRepo.FindByEmail(ctx, req.Email)
-		if err == nil && exist != nil && exist.ID != id {
-			return common.ErrEmailExists
+	// Cập nhật email nếu có và hợp lệ
+	if req.Email != nil {
+		email := strings.TrimSpace(*req.Email)
+		if email != "" {
+			exist, err := s.userRepo.FindByEmail(ctx, email)
+			if err != nil {
+				return err
+			}
+			if exist != nil && exist.ID != id {
+				return common.ErrEmailExists
+			}
+			update["email"] = email
 		}
-		update["email"] = req.Email
 	}
-	if req.FullName != "" {
-		update["full_name"] = req.FullName
-	}
-	if req.Course != "" {
-		update["course"] = req.Course
-	}
-	if req.Status != "" {
-		update["status"] = req.Status
-	}
-	if req.FacultyCode != "" {
-		faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, req.FacultyCode, universityID)
-		if err != nil || faculty == nil {
-			return common.ErrFacultyNotFound
+
+	// Cập nhật full_name nếu có và không rỗng
+	if req.FullName != nil {
+		fullName := strings.TrimSpace(*req.FullName)
+		if fullName != "" {
+			update["full_name"] = fullName
 		}
-		update["faculty_id"] = faculty.ID
 	}
+
+	// Cập nhật course nếu có và không rỗng
+	if req.Course != nil {
+		course := strings.TrimSpace(*req.Course)
+		if course != "" {
+			update["course"] = course
+		}
+	}
+
+	// Cập nhật faculty nếu có và hợp lệ
+	if req.FacultyCode != nil {
+		facultyCode := strings.TrimSpace(*req.FacultyCode)
+		if facultyCode != "" {
+			faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, facultyCode, universityID)
+			if err != nil {
+				return err
+			}
+			if faculty == nil {
+				return common.ErrFacultyNotFound
+			}
+			update["faculty_id"] = faculty.ID
+		}
+	}
+
+	// Cập nhật thời gian cập nhật
 	update["updated_at"] = time.Now()
 
-	if len(update) == 1 { // chỉ có updated_at
+	// Nếu ngoài updated_at không có trường nào khác được cập nhật => lỗi
+	if len(update) == 1 {
 		return errors.New("không có trường nào để cập nhật")
 	}
 
+	// Thực hiện cập nhật user trong repo
 	return s.userRepo.UpdateUser(ctx, id, update)
 }
 

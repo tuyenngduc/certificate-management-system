@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -130,22 +132,38 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "ID không hợp lệ"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID không hợp lệ"})
 		return
 	}
 
 	var req models.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if errs, ok := common.ParseValidationError(err); ok {
-			c.JSON(400, gin.H{"errors": errs})
-			return
+			c.JSON(http.StatusBadRequest, gin.H{"errors": errs})
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
 		}
-		c.JSON(400, gin.H{"error": "Dữ liệu không hợp lệ"})
 		return
 	}
 
-	err = h.userService.UpdateUser(c.Request.Context(), id, req)
+	claimsVal, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không có quyền hoặc token không hợp lệ"})
+		return
+	}
+
+	claims, ok := claimsVal.(*utils.CustomClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không có quyền hoặc token không hợp lệ"})
+		return
+	}
+
+	// Tạo context có chứa claims để truyền vào service
+	ctx := context.WithValue(c.Request.Context(), "claims", claims)
+
+	err = h.userService.UpdateUser(ctx, id, req)
 	if err != nil {
+		log.Printf("UpdateUser Error: %v\n", err)
 		switch err {
 		case common.ErrStudentIDExists:
 			c.JSON(http.StatusConflict, gin.H{"error": "Mã sinh viên đã tồn tại"})
@@ -155,10 +173,10 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Trường đại học không tồn tại"})
 		case common.ErrFacultyNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"error": "Khoa không tồn tại"})
+		case common.ErrUnauthorized, common.ErrInvalidToken:
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Không có quyền hoặc token không hợp lệ"})
 		default:
-			if err.Error() == "phải cung cấp cả faculty_code và university_code" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			} else if err.Error() == "không có trường nào để cập nhật" {
+			if err.Error() == "không có trường nào để cập nhật" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			} else {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi server"})

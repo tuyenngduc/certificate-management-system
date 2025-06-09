@@ -50,10 +50,9 @@ type SearchUserParams struct {
 }
 
 type UpdateUserRequest struct {
-	StudentCode string `json:"student_code" binding:"omitempty"`
-	FullName    string `json:"full_name" binding:"omitempty"`
-	Email       string `json:"email" binding:"omitempty,email"`
-	FacultyCode string `json:"faculty_code" binding:"omitempty"`
-	Course      string `json:"course" binding:"omitempty"`
-	Status      string `json:"status" binding:"omitempty"`
+	StudentCode *string `json:"student_code" binding:"omitempty"`
+	FullName    *string `json:"full_name" binding:"omitempty"`
+	Email       *string `json:"email" binding:"omitempty,email"`
+	FacultyCode *string `json:"faculty_code" binding:"omitempty"`
+	Course      *string `json:"course" binding:"omitempty"`
 }
