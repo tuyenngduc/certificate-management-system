@@ -188,7 +188,7 @@ func (s *userService) CreateUser(ctx context.Context, claims *utils.CustomClaims
 		FacultyID:    faculty.ID,
 		UniversityID: universityID,
 		Course:       req.Course,
-		Status:       "Đang học",
+		Status:       false,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

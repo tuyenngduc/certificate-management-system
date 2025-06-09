@@ -59,6 +59,7 @@ func (r *userRepository) GetUserByID(ctx context.Context, id primitive.ObjectID)
 }
 func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error) {
 	filter := bson.M{}
+
 	if params.StudentCode != "" {
 		filter["student_code"] = bson.M{"$regex": params.StudentCode, "$options": "i"}
 	}
@@ -69,11 +70,14 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 		filter["email"] = bson.M{"$regex": params.Email, "$options": "i"}
 	}
 
+	// Tìm theo faculty_code (là chuỗi, không phải ObjectID)
 	if params.Faculty != "" {
-		facultyID, err := primitive.ObjectIDFromHex(params.Faculty)
-		if err == nil {
-			filter["faculty_id"] = facultyID
-		}
+		filter["faculty_code"] = bson.M{"$regex": params.Faculty, "$options": "i"}
+	}
+
+	// Tìm theo course (chuỗi, có thể partial match)
+	if params.Course != "" {
+		filter["course"] = bson.M{"$regex": params.Course, "$options": "i"}
 	}
 
 	skip := int64((params.Page - 1) * params.PageSize)
@@ -95,6 +99,7 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 	if err := cursor.All(ctx, &users); err != nil {
 		return nil, 0, err
 	}
+
 	return users, total, nil
 }
 

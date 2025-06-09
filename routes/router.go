@@ -13,6 +13,7 @@ func SetupRouter(
 	certificateHandler *handlers.CertificateHandler,
 	universityHandler *handlers.UniversityHandler,
 	facultyHandler *handlers.FacultyHandler,
+	fileHandler *handlers.FileHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -79,6 +80,9 @@ func SetupRouter(
 	facultyGroup.PUT("/:id", facultyHandler.UpdateFaculty)
 	facultyGroup.DELETE("/:id", facultyHandler.DeleteFaculty)
 	facultyGroup.GET("/:id", facultyHandler.GetFacultyByID)
+
+	//temp
+	api.POST("/upload", fileHandler.UploadFile)
 
 	return r
 }

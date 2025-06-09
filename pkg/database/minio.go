@@ -75,3 +75,13 @@ func NewMinioClientFromEnv() (*MinioClient, error) {
 
 	return NewMinioClient(endpoint, accessKey, secretKey, bucket, useSSL)
 }
+
+func (m *MinioClient) GetFileURL(objectName string) string {
+	endpoint := os.Getenv("MINIO_ENDPOINT")
+	useSSL := os.Getenv("MINIO_USE_SSL")
+	scheme := "http"
+	if useSSL == "true" {
+		scheme = "https"
+	}
+	return scheme + "://" + endpoint + "/" + m.Bucket + "/" + objectName
+}
