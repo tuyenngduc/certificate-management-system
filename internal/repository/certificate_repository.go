@@ -21,6 +21,7 @@ type CertificateRepository interface {
 	FindLatestCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.Certificate, error)
 	FindCertificate(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error)
 	UpdateVerificationCode(ctx context.Context, id primitive.ObjectID, code string, expired time.Time) error
+	GetByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error)
 	FindBySerialAndUniversity(ctx context.Context, serial string, universityID primitive.ObjectID) (*models.Certificate, error)
 }
 type certificateRepository struct {
@@ -144,4 +145,18 @@ func (r *certificateRepository) FindBySerialAndUniversity(ctx context.Context, s
 		return nil, err
 	}
 	return &cert, nil
+}
+func (r *certificateRepository) GetByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error) {
+	filter := bson.M{"user_id": userID}
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var certs []*models.Certificate
+	if err := cursor.All(ctx, &certs); err != nil {
+		return nil, err
+	}
+	return certs, nil
 }

@@ -357,7 +357,7 @@ func (s *userService) GetUsersByFacultyCode(ctx context.Context, code string) ([
 }
 
 func (s *userService) GetMyProfile(ctx context.Context) (*models.UserResponse, error) {
-	claimsVal := ctx.Value("claims")
+	claimsVal := ctx.Value(utils.ClaimsContextKey)
 	claims, ok := claimsVal.(*utils.CustomClaims)
 	if !ok || claims == nil {
 		return nil, common.ErrUnauthorized
