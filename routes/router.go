@@ -51,6 +51,7 @@ func SetupRouter(
 	userGroup.GET("/:id", userHandler.GetUserByID)
 	userGroup.PUT("/:id", userHandler.UpdateUser)
 	userGroup.GET("/search", userHandler.SearchUsers)
+	userGroup.GET("/me", userHandler.GetMyProfile)
 	userGroup.DELETE("/:id", userHandler.DeleteUser)
 	userGroup.GET("/faculty/:faculty_code", userHandler.GetUsersByFacultyCode)
 

@@ -307,14 +307,11 @@ func (h *AuthHandler) GetStudentAccounts(c *gin.Context) {
 	for _, acc := range accounts {
 		user, err := h.userService.GetUserByID(ctx, acc.StudentID)
 		if err != nil {
-			// Nếu không tìm thấy user, bỏ qua hoặc xử lý tùy ý
 			continue
 		}
 
-		// Lấy university qua user.UniversityID chứ không phải acc.UniversityID
 		univ, err := h.universityService.GetUniversityByCode(ctx, user.UniversityCode)
 		if err != nil {
-			// Không tìm thấy university, có thể bỏ qua hoặc xử lý
 			continue
 		}
 

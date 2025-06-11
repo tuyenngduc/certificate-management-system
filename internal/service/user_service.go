@@ -23,6 +23,7 @@ type UserService interface {
 	DeleteUser(ctx context.Context, id primitive.ObjectID) error
 	UpdateUser(ctx context.Context, id primitive.ObjectID, req models.UpdateUserRequest) error
 	GetUsersByFacultyCode(ctx context.Context, code string) ([]models.UserResponse, error)
+	GetMyProfile(ctx context.Context) (*models.UserResponse, error)
 }
 
 type userService struct {
@@ -109,6 +110,18 @@ func (s *userService) GetUserByID(ctx context.Context, id primitive.ObjectID) (*
 }
 
 func (s *userService) SearchUsers(ctx context.Context, params models.SearchUserParams) ([]models.UserResponse, int64, error) {
+	claimsVal := ctx.Value(utils.ClaimsContextKey)
+	claims, ok := claimsVal.(*utils.CustomClaims)
+	if !ok || claims == nil {
+		return nil, 0, common.ErrUnauthorized
+	}
+	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
+	if err != nil {
+		return nil, 0, common.ErrInvalidToken
+	}
+
+	params.UniversityID = universityID
+
 	users, total, err := s.userRepo.SearchUsers(ctx, params)
 	if err != nil {
 		return nil, 0, err
@@ -341,4 +354,47 @@ func (s *userService) GetUsersByFacultyCode(ctx context.Context, code string) ([
 		responses = append(responses, resp)
 	}
 	return responses, nil
+}
+
+func (s *userService) GetMyProfile(ctx context.Context) (*models.UserResponse, error) {
+	claimsVal := ctx.Value("claims")
+	claims, ok := claimsVal.(*utils.CustomClaims)
+	if !ok || claims == nil {
+		return nil, common.ErrUnauthorized
+	}
+	userID, err := primitive.ObjectIDFromHex(claims.UserID)
+	if err != nil {
+		return nil, common.ErrInvalidToken
+	}
+
+	user, err := s.userRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, common.ErrUserNotExisted
+	}
+
+	// Lấy thêm thông tin faculty và university
+	faculty, err := s.facultyRepo.FindByID(ctx, user.FacultyID)
+	if err != nil {
+		return nil, err
+	}
+	university, err := s.universityRepo.FindByID(ctx, user.UniversityID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.UserResponse{
+		ID:             user.ID,
+		StudentCode:    user.StudentCode,
+		FullName:       user.FullName,
+		Email:          user.Email,
+		FacultyCode:    faculty.FacultyCode,
+		FacultyName:    faculty.FacultyName,
+		UniversityCode: university.UniversityCode,
+		UniversityName: university.UniversityName,
+		Course:         user.Course,
+		Status:         user.Status,
+	}, nil
 }

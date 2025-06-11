@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -15,12 +16,16 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Thiếu hoặc sai định dạng token"})
 			return
 		}
+
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 		claims, err := utils.ParseToken(tokenStr)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
 			return
 		}
+
+		ctx := context.WithValue(c.Request.Context(), utils.ClaimsContextKey, claims)
+		c.Request = c.Request.WithContext(ctx)
 		c.Set("claims", claims)
 		c.Next()
 	}

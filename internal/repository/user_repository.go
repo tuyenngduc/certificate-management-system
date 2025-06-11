@@ -26,17 +26,24 @@ type UserRepository interface {
 	FindByStudentCodeAndUniversityID(ctx context.Context, studentCode string, universityID primitive.ObjectID) (*models.User, error)
 }
 type userRepository struct {
-	col *mongo.Collection
+	col        *mongo.Collection
+	facultyCol *mongo.Collection
 }
 
 func NewUserRepository(db *mongo.Database) UserRepository {
 	col := db.Collection("users")
-	repo := &userRepository{col: col}
+	facultyCol := db.Collection("faculties") // thêm dòng này
+
+	repo := &userRepository{
+		col:        col,
+		facultyCol: facultyCol,
+	}
 	if err := repo.initIndexes(context.Background()); err != nil {
 		log.Fatal("Cannot create indexes:", err)
 	}
 	return repo
 }
+
 func (r *userRepository) GetAllUsers(ctx context.Context) ([]*models.User, error) {
 	cursor, err := r.col.Find(ctx, bson.M{})
 	if err != nil {
@@ -59,7 +66,14 @@ func (r *userRepository) GetUserByID(ctx context.Context, id primitive.ObjectID)
 	return &user, nil
 }
 func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error) {
+	log.Printf("📥 SearchUserParams received: %+v\n", params) // Debug toàn bộ input
+
 	filter := bson.M{}
+
+	// Bắt buộc lọc theo university_id
+	if !params.UniversityID.IsZero() {
+		filter["university_id"] = params.UniversityID
+	}
 
 	if params.StudentCode != "" {
 		filter["student_code"] = bson.M{"$regex": params.StudentCode, "$options": "i"}
@@ -75,16 +89,41 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 	}
 
 	if params.Faculty != "" {
-		filter["faculty_code"] = bson.M{"$regex": params.Faculty, "$options": "i"}
+		log.Println("🔍 Filtering by faculty_code:", params.Faculty)
+
+		var faculty struct {
+			ID primitive.ObjectID `bson:"_id"`
+		}
+
+		facultyFilter := bson.M{
+			"faculty_code": bson.M{"$regex": params.Faculty, "$options": "i"},
+		}
+
+		if !params.UniversityID.IsZero() {
+			facultyFilter["university_id"] = params.UniversityID
+		}
+
+		err := r.facultyCol.FindOne(ctx, facultyFilter).Decode(&faculty)
+		if err != nil {
+			log.Println("⚠️ Faculty not found with code:", params.Faculty, "err:", err)
+
+			// ✅ Trả về kết quả rỗng nếu không tìm thấy khoa
+			return []*models.User{}, 0, nil
+		} else {
+			filter["faculty_id"] = faculty.ID
+			log.Println("✅ Found faculty_id:", faculty.ID.Hex())
+		}
 	}
 
-	// Tìm theo course (chuỗi, có thể partial match)
 	if params.Course != "" {
 		filter["course"] = bson.M{"$regex": params.Course, "$options": "i"}
 	}
 
+	// Pagination
 	skip := int64((params.Page - 1) * params.PageSize)
 	limit := int64(params.PageSize)
+
+	log.Printf("📦 Final MongoDB filter: %+v\n", filter)
 
 	total, err := r.col.CountDocuments(ctx, filter)
 	if err != nil {

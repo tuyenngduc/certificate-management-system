@@ -53,11 +53,13 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 }
 
 func (h *UserHandler) SearchUsers(c *gin.Context) {
+
 	var params models.SearchUserParams
 	if err := c.ShouldBindQuery(&params); err != nil {
 		c.JSON(400, gin.H{"error": "Tham số không hợp lệ"})
 		return
 	}
+
 	if params.Page < 1 {
 		params.Page = 1
 	}
@@ -65,6 +67,7 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 		params.PageSize = 10
 	}
 
+	// Gọi service với request.Context đã chứa claims
 	users, total, err := h.userService.SearchUsers(c.Request.Context(), params)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -78,6 +81,18 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 		"page_size":  params.PageSize,
 		"total_page": (total + int64(params.PageSize) - 1) / int64(params.PageSize),
 	})
+}
+
+func (h *UserHandler) GetMyProfile(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	user, err := h.userService.GetMyProfile(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
@@ -159,7 +174,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	// Tạo context có chứa claims để truyền vào service
-	ctx := context.WithValue(c.Request.Context(), "claims", claims)
+	ctx := context.WithValue(c.Request.Context(), utils.ClaimsContextKey, claims)
 
 	err = h.userService.UpdateUser(ctx, id, req)
 	if err != nil {

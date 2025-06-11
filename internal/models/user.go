@@ -41,14 +41,15 @@ type UserResponse struct {
 }
 
 type SearchUserParams struct {
-	StudentCode string `form:"student_code"`
-	FullName    string `form:"full_name"`
-	Email       string `form:"email"`
-	Faculty     string `form:"faculty"`
-	Course      string `form:"course" `
-	Status      *bool  `form:"status"`
-	Page        int    `form:"page,default=1"`
-	PageSize    int    `form:"page_size,default=10"`
+	StudentCode  string             `form:"student_code"`
+	FullName     string             `form:"full_name"`
+	Email        string             `form:"email"`
+	Faculty      string             `form:"faculty_code"`
+	Course       string             `form:"course" `
+	Status       *bool              `form:"status"`
+	Page         int                `form:"page,default=1"`
+	PageSize     int                `form:"page_size,default=10"`
+	UniversityID primitive.ObjectID `json:"-"`
 }
 
 type UpdateUserRequest struct {
