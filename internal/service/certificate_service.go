@@ -183,6 +183,10 @@ func (s *certificateService) GetCertificateByID(ctx context.Context, id primitiv
 	if cert == nil {
 		return nil, common.ErrCertificateNotFound
 	}
+	user, err := s.userRepo.GetUserByID(ctx, cert.UserID)
+	if err != nil || user == nil {
+		return nil, common.ErrUserNotExisted
+	}
 
 	faculty, err := s.facultyRepo.FindByID(ctx, cert.FacultyID)
 	if err != nil || faculty == nil {
@@ -203,7 +207,8 @@ func (s *certificateService) GetCertificateByID(ctx context.Context, id primitiv
 	return &models.CertificateResponse{
 		ID:              cert.ID.Hex(),
 		UserID:          cert.UserID.Hex(),
-		StudentCode:     cert.StudentCode,
+		StudentCode:     user.StudentCode,
+		StudentName:     user.FullName,
 		CertificateType: cert.CertificateType,
 		Name:            cert.Name,
 		SerialNumber:    cert.SerialNumber,
