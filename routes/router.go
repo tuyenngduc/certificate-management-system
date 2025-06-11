@@ -14,6 +14,7 @@ func SetupRouter(
 	universityHandler *handlers.UniversityHandler,
 	facultyHandler *handlers.FacultyHandler,
 	fileHandler *handlers.FileHandler,
+	verificationHandler *handlers.VerificationHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -66,12 +67,10 @@ func SetupRouter(
 	certificateGroup.GET("/my-file", certificateHandler.GetMyCertificateFile)
 	certificateGroup.GET("/student/:id", certificateHandler.GetCertificatesByStudentID)
 	certificateGroup.GET("/search", certificateHandler.SearchCertificates)
-	certificateGroup.POST("/generate-verification-code/:id", certificateHandler.GenerateVerificationCode)
 	certificateGroup.GET("/my-certificate", certificateHandler.GetMyCertificates)
 
 	// ===== University routes =====
 	universityGroup := api.Group("/universities")
-	universityGroup.Use(middleware.JWTAuthMiddleware())
 	universityGroup.POST("", universityHandler.CreateUniversity)
 	universityGroup.POST("/approve-or-reject", universityHandler.ApproveOrRejectUniversity)
 	universityGroup.GET("", universityHandler.GetAllUniversities)
@@ -88,6 +87,11 @@ func SetupRouter(
 
 	//temp
 	api.POST("/upload", fileHandler.UploadFile)
+
+	//verification
+	auth := api.Group("/verification").Use(middleware.JWTAuthMiddleware())
+	auth.POST("/create", verificationHandler.CreateVerificationCode)
+	auth.GET("/my-codes", verificationHandler.GetMyCodes)
 
 	return r
 }

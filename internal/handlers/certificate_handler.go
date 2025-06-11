@@ -321,25 +321,7 @@ func (h *CertificateHandler) SearchCertificates(c *gin.Context) {
 		"total_page": (total + int64(params.PageSize) - 1) / int64(params.PageSize),
 	})
 }
-func (h *CertificateHandler) GenerateVerificationCode(c *gin.Context) {
-	idParam := c.Param("id")
-	certID, err := primitive.ObjectIDFromHex(idParam)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid certificate ID"})
-		return
-	}
 
-	code, err := h.certificateService.GenerateVerificationCode(c.Request.Context(), certID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":           "Verification code generated successfully",
-		"verification_code": code,
-	})
-}
 func (h *CertificateHandler) GetMyCertificates(c *gin.Context) {
 	val, exists := c.Get(string(utils.ClaimsContextKey))
 	if !exists {

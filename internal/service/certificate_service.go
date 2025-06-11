@@ -25,7 +25,6 @@ type CertificateService interface {
 	GetCertificateBySerialAndUniversity(ctx context.Context, serial string, universityID primitive.ObjectID) (*models.Certificate, error)
 	GetCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.CertificateResponse, error)
 	CreateCertificate(ctx context.Context, claims *utils.CustomClaims, req *models.CreateCertificateRequest) (*models.CertificateResponse, error)
-	GenerateVerificationCode(ctx context.Context, certID primitive.ObjectID) (string, error)
 	GetCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.CertificateResponse, error)
 
 	SearchCertificates(ctx context.Context, params models.SearchCertificateParams) ([]*models.CertificateResponse, int64, error)
@@ -408,16 +407,6 @@ func (s *certificateService) SearchCertificates(ctx context.Context, params mode
 	return results, total, nil
 }
 
-func (s *certificateService) GenerateVerificationCode(ctx context.Context, certID primitive.ObjectID) (string, error) {
-	code := utils.GenerateRandomCode(8)
-	expiredAt := time.Now().Add(24 * time.Hour)
-
-	err := s.certificateRepo.UpdateVerificationCode(ctx, certID, code, expiredAt)
-	if err != nil {
-		return "", err
-	}
-	return code, nil
-}
 func (s *certificateService) GetCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.CertificateResponse, error) {
 	certs, err := s.certificateRepo.GetByUserID(ctx, userID)
 	if err != nil {

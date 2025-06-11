@@ -58,6 +58,7 @@ func main() {
 	universityRepo := repository.NewUniversityRepository(db)
 	certificateRepo := repository.NewCertificateRepository(db)
 	facultyRepo := repository.NewFacultyRepository(db)
+	verificationRepo := repository.NewVerificationRepository(db)
 
 	// Services
 	userService := service.NewUserService(userRepo, universityRepo, facultyRepo)
@@ -65,6 +66,7 @@ func main() {
 	universityService := service.NewUniversityService(universityRepo, authRepo, emailSender)
 	certificateService := service.NewCertificateService(certificateRepo, userRepo, facultyRepo, universityRepo, minioClient)
 	facultyService := service.NewFacultyService(universityRepo, facultyRepo)
+	verificationService := service.NewVerificationService(verificationRepo)
 
 	// Handlers
 	facultyHandler := handlers.NewFacultyHandler(facultyService)
@@ -72,9 +74,10 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService, universityService, userService, facultyService)
 	universityHandler := handlers.NewUniversityHandler(universityService)
 	certificateHandler := handlers.NewCertificateHandler(certificateService, universityService, facultyService, userService, minioClient)
+	verificationHandler := handlers.NewVerificationHandler(verificationService)
 
-	// ✅ Tạo thêm handler riêng cho upload file
 	fileHandler := handlers.NewFileHandler(minioClient)
+	// Repository
 
 	// Setup router
 	r := routes.SetupRouter(
@@ -83,7 +86,8 @@ func main() {
 		certificateHandler,
 		universityHandler,
 		facultyHandler,
-		fileHandler, // ✅ Thêm vào đây
+		fileHandler,
+		verificationHandler,
 	)
 
 	// Xử lý tín hiệu dừng
