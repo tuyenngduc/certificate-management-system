@@ -32,14 +32,11 @@ type userRepository struct {
 
 func NewUserRepository(db *mongo.Database) UserRepository {
 	col := db.Collection("users")
-	facultyCol := db.Collection("faculties") // thêm dòng này
+	facultyCol := db.Collection("faculties")
 
 	repo := &userRepository{
 		col:        col,
 		facultyCol: facultyCol,
-	}
-	if err := repo.initIndexes(context.Background()); err != nil {
-		log.Fatal("Cannot create indexes:", err)
 	}
 	return repo
 }
@@ -66,11 +63,10 @@ func (r *userRepository) GetUserByID(ctx context.Context, id primitive.ObjectID)
 	return &user, nil
 }
 func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error) {
-	log.Printf("📥 SearchUserParams received: %+v\n", params) // Debug toàn bộ input
+	log.Printf("📥 SearchUserParams received: %+v\n", params)
 
 	filter := bson.M{}
 
-	// Bắt buộc lọc theo university_id
 	if !params.UniversityID.IsZero() {
 		filter["university_id"] = params.UniversityID
 	}
@@ -107,7 +103,6 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 		if err != nil {
 			log.Println("⚠️ Faculty not found with code:", params.Faculty, "err:", err)
 
-			// ✅ Trả về kết quả rỗng nếu không tìm thấy khoa
 			return []*models.User{}, 0, nil
 		} else {
 			filter["faculty_id"] = faculty.ID
@@ -160,18 +155,6 @@ func (r *userRepository) UpdateUser(ctx context.Context, id primitive.ObjectID, 
 	return nil
 }
 
-func (r *userRepository) initIndexes(ctx context.Context) error {
-	studentIDIndex := mongo.IndexModel{
-		Keys:    bson.D{{Key: "student_code", Value: 1}},
-		Options: options.Index().SetUnique(true),
-	}
-	emailIndex := mongo.IndexModel{
-		Keys:    bson.D{{Key: "email", Value: 1}},
-		Options: options.Index().SetUnique(true),
-	}
-	_, err := r.col.Indexes().CreateMany(ctx, []mongo.IndexModel{studentIDIndex, emailIndex})
-	return err
-}
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
 	err := r.col.FindOne(ctx, bson.M{"email": email}).Decode(&user)

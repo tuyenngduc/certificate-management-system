@@ -22,7 +22,7 @@ type CertificateService interface {
 	DeleteCertificate(ctx context.Context, id primitive.ObjectID) error
 	UploadCertificateFile(ctx context.Context, certificateID primitive.ObjectID, fileData []byte, filename string) (string, error)
 	GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.CertificateResponse, error)
-	GetCertificateBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error)
+	GetCertificateBySerialAndUniversity(ctx context.Context, serial string, universityID primitive.ObjectID) (*models.Certificate, error)
 	GetCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.CertificateResponse, error)
 	CreateCertificate(ctx context.Context, claims *utils.CustomClaims, req *models.CreateCertificateRequest) (*models.CertificateResponse, error)
 	GenerateVerificationCode(ctx context.Context, certID primitive.ObjectID) (string, error)
@@ -55,8 +55,14 @@ func NewCertificateService(
 }
 
 func (s *certificateService) CreateCertificate(ctx context.Context, claims *utils.CustomClaims, req *models.CreateCertificateRequest) (*models.CertificateResponse, error) {
-	// Lấy user từ StudentCode
-	user, err := s.userRepo.FindByStudentCode(ctx, req.StudentCode)
+	// Parse universityID từ token
+	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
+	if err != nil {
+		return nil, common.ErrInvalidToken
+	}
+
+	// Lấy user theo StudentCode và UniversityID (ràng buộc trường)
+	user, err := s.userRepo.FindByStudentCodeAndUniversityID(ctx, req.StudentCode, universityID)
 	if err != nil || user == nil {
 		return nil, common.ErrUserNotExisted
 	}
@@ -65,16 +71,13 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 		return nil, errors.New("người dùng chưa được gán khoa")
 	}
 
+	// Lấy thông tin khoa
 	faculty, err := s.facultyRepo.FindByID(ctx, user.FacultyID)
 	if err != nil || faculty == nil {
 		return nil, common.ErrFacultyNotFound
 	}
 
-	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
-	if err != nil {
-		return nil, common.ErrInvalidToken
-	}
-
+	// Lấy thông tin trường
 	university, err := s.universityRepo.FindByID(ctx, universityID)
 	if err != nil || university == nil {
 		return nil, common.ErrUniversityNotFound
@@ -96,11 +99,13 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 		UpdatedAt:       time.Now(),
 	}
 
+	// Lưu vào DB
 	err = s.certificateRepo.CreateCertificate(ctx, cert)
 	if err != nil {
 		return nil, err
 	}
 
+	// Trả kết quả
 	return &models.CertificateResponse{
 		ID:              cert.ID.Hex(),
 		UserID:          cert.UserID.Hex(),
@@ -250,8 +255,8 @@ func (s *certificateService) UploadCertificateFile(
 	return objectKey, nil
 }
 
-func (s *certificateService) GetCertificateBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error) {
-	return s.certificateRepo.FindBySerialNumber(ctx, serial)
+func (s *certificateService) GetCertificateBySerialAndUniversity(ctx context.Context, serial string, universityID primitive.ObjectID) (*models.Certificate, error) {
+	return s.certificateRepo.FindBySerialAndUniversity(ctx, serial, universityID)
 }
 func (s *certificateService) GetCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.CertificateResponse, error) {
 	cert, err := s.certificateRepo.FindLatestCertificateByUserID(ctx, userID)
@@ -298,7 +303,21 @@ func (s *certificateService) GetCertificateByUserID(ctx context.Context, userID 
 }
 
 func (s *certificateService) SearchCertificates(ctx context.Context, params models.SearchCertificateParams) ([]*models.CertificateResponse, int64, error) {
+	claimsVal := ctx.Value(utils.ClaimsContextKey)
+	claims, ok := claimsVal.(*utils.CustomClaims)
+	if !ok || claims == nil {
+		fmt.Println("DEBUG: Claims not found or invalid")
+		return nil, 0, common.ErrUnauthorized
+	}
+	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
+	if err != nil {
+		fmt.Println("DEBUG: Invalid universityID in token:", claims.UniversityID)
+		return nil, 0, common.ErrInvalidToken
+	}
+	fmt.Println("DEBUG: universityID from token:", universityID.Hex())
+
 	filter := bson.M{}
+	filter["university_id"] = universityID
 
 	if params.StudentCode != "" {
 		filter["student_code"] = bson.M{"$regex": params.StudentCode, "$options": "i"}
@@ -310,52 +329,52 @@ func (s *certificateService) SearchCertificates(ctx context.Context, params mode
 		filter["signed"] = *params.Signed
 	}
 
-	// Filter by FacultyCode nếu được truyền vào
 	if params.FacultyCode != "" {
-		faculty, err := s.facultyRepo.FindByFacultyCode(ctx, params.FacultyCode)
+		fmt.Println("DEBUG: Searching with FacultyCode:", params.FacultyCode)
+
+		faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, params.FacultyCode, universityID)
 		if err != nil {
+			fmt.Println("DEBUG: Error when finding faculty:", err)
 			return nil, 0, fmt.Errorf("faculty not found: %w", err)
 		}
 		if faculty == nil {
-			return nil, 0, fmt.Errorf("faculty not found with code: %s", params.FacultyCode)
+			fmt.Println("DEBUG: Faculty with code", params.FacultyCode, "not found in university", universityID.Hex())
+			return nil, 0, fmt.Errorf("faculty not found in your university with code: %s", params.FacultyCode)
 		}
+		fmt.Println("DEBUG: Found faculty ID:", faculty.ID.Hex(), "with code:", faculty.FacultyCode)
 		filter["faculty_id"] = faculty.ID
 	}
 
-	// Truy vấn danh sách certificate
+	fmt.Println("DEBUG: Final MongoDB filter:", filter)
+
 	certs, total, err := s.certificateRepo.FindCertificate(ctx, filter, params.Page, params.PageSize)
 	if err != nil {
+		fmt.Println("DEBUG: Error when finding certificates:", err)
 		return nil, 0, err
 	}
+	fmt.Println("DEBUG: Total certs found:", total)
 
 	var results []*models.CertificateResponse
 	for _, cert := range certs {
-		var user *models.User
-		var err error
-
-		if params.Course != "" {
-			user, err = s.userRepo.GetUserByID(ctx, cert.UserID)
-			if err != nil || user == nil {
-				continue
-			}
-			if !strings.Contains(strings.ToLower(user.Course), strings.ToLower(params.Course)) {
-				continue
-			}
-		} else {
-			// Lấy user nếu không filter course, để lấy tên
-			user, err = s.userRepo.GetUserByID(ctx, cert.UserID)
-			if err != nil || user == nil {
-				continue
-			}
+		user, err := s.userRepo.GetUserByID(ctx, cert.UserID)
+		if err != nil || user == nil {
+			fmt.Println("DEBUG: Could not find user for cert ID:", cert.ID.Hex())
+			continue
 		}
 
-		// Lấy Faculty, University để hiển thị thông tin
+		if params.Course != "" && !strings.Contains(strings.ToLower(user.Course), strings.ToLower(params.Course)) {
+			fmt.Println("DEBUG: Course mismatch. Expected contains:", params.Course, "Actual:", user.Course)
+			continue
+		}
+
 		faculty, err := s.facultyRepo.FindByID(ctx, cert.FacultyID)
 		if err != nil || faculty == nil {
+			fmt.Println("DEBUG: Could not find faculty for cert ID:", cert.ID.Hex())
 			continue
 		}
 		university, err := s.universityRepo.FindByID(ctx, cert.UniversityID)
 		if err != nil || university == nil {
+			fmt.Println("DEBUG: Could not find university for cert ID:", cert.ID.Hex())
 			continue
 		}
 
@@ -382,6 +401,7 @@ func (s *certificateService) SearchCertificates(ctx context.Context, params mode
 
 	return results, total, nil
 }
+
 func (s *certificateService) GenerateVerificationCode(ctx context.Context, certID primitive.ObjectID) (string, error) {
 	code := utils.GenerateRandomCode(8)         // VD: hàm tạo mã ngẫu nhiên
 	expiredAt := time.Now().Add(24 * time.Hour) // mã có hiệu lực 24h

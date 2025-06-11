@@ -21,6 +21,7 @@ type CertificateRepository interface {
 	FindLatestCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.Certificate, error)
 	FindCertificate(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error)
 	UpdateVerificationCode(ctx context.Context, id primitive.ObjectID, code string, expired time.Time) error
+	FindBySerialAndUniversity(ctx context.Context, serial string, universityID primitive.ObjectID) (*models.Certificate, error)
 }
 type certificateRepository struct {
 	col *mongo.Collection
@@ -130,4 +131,17 @@ func (r *certificateRepository) UpdateVerificationCode(ctx context.Context, id p
 	}
 	_, err := r.col.UpdateByID(ctx, id, update)
 	return err
+}
+
+func (r *certificateRepository) FindBySerialAndUniversity(ctx context.Context, serial string, universityID primitive.ObjectID) (*models.Certificate, error) {
+	filter := bson.M{
+		"serial_number": serial,
+		"university_id": universityID,
+	}
+	var cert models.Certificate
+	err := r.col.FindOne(ctx, filter).Decode(&cert)
+	if err != nil {
+		return nil, err
+	}
+	return &cert, nil
 }

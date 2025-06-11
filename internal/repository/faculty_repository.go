@@ -30,21 +30,22 @@ func NewFacultyRepository(db *mongo.Database) FacultyRepository {
 	}
 }
 
-func (r *facultyRepository) FindByCodeAndUniversityID(ctx context.Context, facultyCode string, universityID primitive.ObjectID) (*models.Faculty, error) {
+func (r *facultyRepository) FindByCodeAndUniversityID(ctx context.Context, code string, universityID primitive.ObjectID) (*models.Faculty, error) {
 	filter := bson.M{
-		"faculty_code":  facultyCode,
+		"faculty_code":  bson.M{"$regex": code, "$options": "i"},
 		"university_id": universityID,
 	}
 	var faculty models.Faculty
 	err := r.col.FindOne(ctx, filter).Decode(&faculty)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		return nil, err
 	}
 	return &faculty, nil
 }
+
 func (r *facultyRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*models.Faculty, error) {
 	var faculty models.Faculty
 	err := r.col.FindOne(ctx, bson.M{"_id": id}).Decode(&faculty)

@@ -121,14 +121,12 @@ func (h *CertificateHandler) GetCertificateByID(c *gin.Context) {
 }
 
 func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
-	// Lấy claims từ token
 	claims, ok := c.MustGet("claims").(*utils.CustomClaims)
 	if !ok || claims == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không xác thực được người dùng"})
 		return
 	}
 
-	// Lấy file upload
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Vui lòng chọn file để tải lên"})
@@ -141,7 +139,6 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 		return
 	}
 
-	// Đọc nội dung file
 	src, err := file.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể mở file"})
@@ -155,17 +152,10 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 		return
 	}
 
-	// Tên file dạng: UniversityCode_SerialNumber.pdf
-	filename := file.Filename
-	parts := strings.Split(strings.TrimSuffix(filename, ext), "_")
-	if len(parts) != 2 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Tên file không đúng định dạng: UniversityCode_SerialNumber.[pdf|jpg|jpeg|png]"})
-		return
-	}
-	universityCodeFromFile := parts[0]
-	serialNumber := parts[1]
+	// Chỉ lấy serial number từ tên file (không còn kiểm tra mã trường)
+	serialNumber := strings.TrimSuffix(file.Filename, ext)
 
-	// Lấy University từ claims
+	// Lấy university từ token
 	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ (UniversityID không đúng định dạng)"})
@@ -177,40 +167,26 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 		return
 	}
 
-	// So sánh mã trường trong file và token
-	if university.UniversityCode != universityCodeFromFile {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Bạn không có quyền tải lên văn bằng cho trường khác"})
-		return
-	}
-
 	// Tìm certificate theo serial number
-	certificate, err := h.certificateService.GetCertificateBySerialNumber(c.Request.Context(), serialNumber)
-	if errors.Is(err, mongo.ErrNoDocuments) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng với số serial đã cung cấp"})
-		return
-	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi khi tìm văn bằng: " + err.Error()})
-		return
-	}
-	if certificate == nil || certificate.ID.IsZero() {
+	certificate, err := h.certificateService.GetCertificateBySerialAndUniversity(c.Request.Context(), serialNumber, university.ID)
+
+	if errors.Is(err, mongo.ErrNoDocuments) || certificate == nil || certificate.ID.IsZero() {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng với số serial đã cung cấp"})
 		return
 	}
 
-	// Kiểm tra quyền sửa đúng trường
+	// Kiểm tra xem văn bằng có thuộc trường đang đăng nhập không
 	if certificate.UniversityID != university.ID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Bạn không được phép cập nhật văn bằng này"})
 		return
 	}
 
-	// Nếu đã có file thì không cho ghi đè
 	if certificate.Path != "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Văn bằng này đã có file, không thể ghi đè"})
 		return
 	}
 
-	// Tải file lên và cập nhật đường dẫn
-	filePath, err := h.certificateService.UploadCertificateFile(c.Request.Context(), certificate.ID, fileData, filename)
+	filePath, err := h.certificateService.UploadCertificateFile(c.Request.Context(), certificate.ID, fileData, file.Filename)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Tải lên thất bại: " + err.Error()})
 		return
