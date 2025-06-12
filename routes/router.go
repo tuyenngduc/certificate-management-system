@@ -68,6 +68,7 @@ func SetupRouter(
 	certificateGroup.GET("/student/:id", certificateHandler.GetCertificatesByStudentID)
 	certificateGroup.GET("/search", certificateHandler.SearchCertificates)
 	certificateGroup.GET("/my-certificate", certificateHandler.GetMyCertificates)
+	certificateGroup.POST("/import-excel", certificateHandler.ImportCertificatesFromExcel)
 
 	// ===== University routes =====
 	universityGroup := api.Group("/universities")
@@ -92,6 +93,7 @@ func SetupRouter(
 	auth := api.Group("/verification").Use(middleware.JWTAuthMiddleware())
 	auth.POST("/create", verificationHandler.CreateVerificationCode)
 	auth.GET("/my-codes", verificationHandler.GetMyCodes)
+	authPublic.GET("/:code", verificationHandler.VerifyCode)
 
 	return r
 }

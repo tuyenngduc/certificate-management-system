@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
 	"github.com/tuyenngduc/certificate-management-system/pkg/database"
 	"github.com/tuyenngduc/certificate-management-system/utils"
+	"github.com/xuri/excelize/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -26,7 +28,7 @@ type CertificateService interface {
 	GetCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.CertificateResponse, error)
 	CreateCertificate(ctx context.Context, claims *utils.CustomClaims, req *models.CreateCertificateRequest) (*models.CertificateResponse, error)
 	GetCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.CertificateResponse, error)
-
+	ImportFromExcel(ctx context.Context, reader io.Reader) (map[string]interface{}, error)
 	SearchCertificates(ctx context.Context, params models.SearchCertificateParams) ([]*models.CertificateResponse, int64, error)
 }
 
@@ -55,35 +57,39 @@ func NewCertificateService(
 }
 
 func (s *certificateService) CreateCertificate(ctx context.Context, claims *utils.CustomClaims, req *models.CreateCertificateRequest) (*models.CertificateResponse, error) {
-	// Parse universityID từ token
 	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
 	if err != nil {
 		return nil, common.ErrInvalidToken
 	}
 
-	// Lấy user theo StudentCode và UniversityID (ràng buộc trường)
 	user, err := s.userRepo.FindByStudentCodeAndUniversityID(ctx, req.StudentCode, universityID)
 	if err != nil || user == nil {
 		return nil, common.ErrUserNotExisted
+	}
+
+	// Check nếu đã cấp văn bằng loại này cho sinh viên
+	exists, err := s.userRepo.ExistsByStudentCodeAndUniversityID(ctx, user.StudentCode, universityID)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, common.ErrCertificateAlreadyExists
 	}
 
 	if user.FacultyID.IsZero() {
 		return nil, errors.New("người dùng chưa được gán khoa")
 	}
 
-	// Lấy thông tin khoa
 	faculty, err := s.facultyRepo.FindByID(ctx, user.FacultyID)
 	if err != nil || faculty == nil {
 		return nil, common.ErrFacultyNotFound
 	}
 
-	// Lấy thông tin trường
 	university, err := s.universityRepo.FindByID(ctx, universityID)
 	if err != nil || university == nil {
 		return nil, common.ErrUniversityNotFound
 	}
 
-	// Tạo certificate
 	cert := &models.Certificate{
 		ID:              primitive.NewObjectID(),
 		UserID:          user.ID,
@@ -99,13 +105,10 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 		UpdatedAt:       time.Now(),
 	}
 
-	// Lưu vào DB
-	err = s.certificateRepo.CreateCertificate(ctx, cert)
-	if err != nil {
+	if err := s.certificateRepo.CreateCertificate(ctx, cert); err != nil {
 		return nil, err
 	}
 
-	// Trả kết quả
 	return &models.CertificateResponse{
 		ID:              cert.ID.Hex(),
 		UserID:          cert.UserID.Hex(),
@@ -272,6 +275,13 @@ func (s *certificateService) GetCertificateByUserID(ctx context.Context, userID 
 		return nil, common.ErrCertificateNotFound
 	}
 
+	user, err := s.userRepo.GetUserByID(ctx, userID)
+	if err != nil || user == nil {
+		user = &models.User{
+			FullName: "Không xác định",
+		}
+	}
+
 	faculty, err := s.facultyRepo.FindByID(ctx, cert.FacultyID)
 	if err != nil || faculty == nil {
 		faculty = &models.Faculty{
@@ -292,6 +302,7 @@ func (s *certificateService) GetCertificateByUserID(ctx context.Context, userID 
 		ID:              cert.ID.Hex(),
 		UserID:          cert.UserID.Hex(),
 		StudentCode:     cert.StudentCode,
+		StudentName:     user.FullName,
 		CertificateType: cert.CertificateType,
 		Name:            cert.Name,
 		SerialNumber:    cert.SerialNumber,
@@ -461,4 +472,79 @@ func (s *certificateService) GetCertificatesByUserID(ctx context.Context, userID
 	}
 
 	return responses, nil
+}
+
+func (s *certificateService) ImportFromExcel(ctx context.Context, reader io.Reader) (map[string]interface{}, error) {
+	f, err := excelize.OpenReader(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := f.GetRows("Sheet1")
+	if err != nil {
+		return nil, err
+	}
+
+	var successCount, failCount int
+	var errorsList []string
+
+	for i, row := range rows {
+		if i == 0 {
+			continue
+		}
+		if len(row) < 5 {
+			failCount++
+			errorsList = append(errorsList, fmt.Sprintf("Dòng %d thiếu dữ liệu", i+1))
+			continue
+		}
+
+		studentCode := strings.TrimSpace(row[0])
+		user, err := s.userRepo.FindByStudentCode(ctx, studentCode)
+		if err != nil || user == nil {
+			failCount++
+			errorsList = append(errorsList, fmt.Sprintf("Dòng %d: không tìm thấy sinh viên %s", i+1, studentCode))
+			continue
+		}
+
+		serial := strings.TrimSpace(row[3])
+		path := fmt.Sprintf("certificates/KMA/%s.jpg", serial)
+
+		cert := &models.Certificate{
+			UserID:          user.ID,
+			StudentCode:     user.StudentCode,
+			CertificateType: strings.TrimSpace(row[1]),
+			Name:            strings.TrimSpace(row[2]),
+			SerialNumber:    serial,
+			RegNo:           strings.TrimSpace(row[4]),
+			Path:            path,
+			Signed:          false,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			FacultyID:       user.FacultyID,
+			UniversityID:    user.UniversityID,
+		}
+
+		err = s.certificateRepo.CreateCertificate(ctx, cert)
+		if err != nil {
+			if errors.Is(err, common.ErrCertificateAlreadyExists) {
+				failCount++
+				errorsList = append(errorsList, fmt.Sprintf("Dòng %d: sinh viên %s đã được cấp văn bằng loại này", i+1, studentCode))
+			} else {
+				failCount++
+				fmt.Printf("Lỗi DB ở dòng %d: %+v\n", i+1, err)
+
+				errorsList = append(errorsList, fmt.Sprintf("Dòng %d: lỗi khi lưu DB", i+1))
+			}
+			continue
+		}
+
+		successCount++
+	}
+
+	return map[string]interface{}{
+		"message":       "Đã xử lý file Excel",
+		"success_count": successCount,
+		"fail_count":    failCount,
+		"errors":        errorsList,
+	}, nil
 }

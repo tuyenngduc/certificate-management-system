@@ -66,7 +66,7 @@ func main() {
 	universityService := service.NewUniversityService(universityRepo, authRepo, emailSender)
 	certificateService := service.NewCertificateService(certificateRepo, userRepo, facultyRepo, universityRepo, minioClient)
 	facultyService := service.NewFacultyService(universityRepo, facultyRepo)
-	verificationService := service.NewVerificationService(verificationRepo)
+	verificationService := service.NewVerificationService(verificationRepo, certificateService)
 
 	// Handlers
 	facultyHandler := handlers.NewFacultyHandler(facultyService)
@@ -74,7 +74,12 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService, universityService, userService, facultyService)
 	universityHandler := handlers.NewUniversityHandler(universityService)
 	certificateHandler := handlers.NewCertificateHandler(certificateService, universityService, facultyService, userService, minioClient)
-	verificationHandler := handlers.NewVerificationHandler(verificationService)
+	verificationHandler := handlers.NewVerificationHandler(
+		verificationService,
+		userService,
+		certificateService,
+		minioClient,
+	)
 
 	fileHandler := handlers.NewFileHandler(minioClient)
 	// Repository
