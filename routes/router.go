@@ -34,6 +34,7 @@ func SetupRouter(
 	authPublic.POST("/request-otp", authHandler.RequestOTP)
 	authPublic.POST("/verify-otp", authHandler.VerifyOTP)
 	authPublic.POST("/register", authHandler.Register)
+	authPublic.GET("/verification", verificationHandler.VerifyCode)
 
 	authPrivate := api.Group("/auth")
 	authPrivate.Use(middleware.JWTAuthMiddleware())
@@ -93,7 +94,6 @@ func SetupRouter(
 	auth := api.Group("/verification").Use(middleware.JWTAuthMiddleware())
 	auth.POST("/create", verificationHandler.CreateVerificationCode)
 	auth.GET("/my-codes", verificationHandler.GetMyCodes)
-	authPublic.GET("/:code", verificationHandler.VerifyCode)
 
 	return r
 }
