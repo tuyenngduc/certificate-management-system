@@ -221,7 +221,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 }
 
 func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
-	val, exists := c.Get("claims")
+	val, exists := c.Get(string(utils.ClaimsContextKey))
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Bạn chưa đăng nhập hoặc token không hợp lệ"})
 		return
@@ -261,8 +261,8 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 	}
 
 	var (
-		results      []map[string]interface{}
-		successCount int
+		successResults []map[string]interface{}
+		errorResults   []map[string]interface{}
 	)
 
 	for i, row := range rows {
@@ -274,7 +274,7 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 
 		if len(row) < 5 {
 			result["error"] = "Thiếu dữ liệu"
-			results = append(results, result)
+			errorResults = append(errorResults, result)
 			continue
 		}
 
@@ -304,26 +304,33 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 			default:
 				result["error"] = err.Error()
 			}
+			errorResults = append(errorResults, result)
 		} else {
-			result["status"] = "created"
-			successCount++
+			result["status"] = "Thêm thành công"
+			successResults = append(successResults, result)
 		}
-		results = append(results, result)
 	}
 
-	if successCount == len(results) {
+	if len(errorResults) == 0 {
 		c.JSON(http.StatusCreated, gin.H{
-			"success_count": successCount,
-			"results":       results,
+			"success_count": len(successResults),
+			"data": gin.H{
+				"success": successResults,
+				"error":   []map[string]interface{}{},
+			},
 		})
 	} else {
 		c.JSON(http.StatusMultiStatus, gin.H{
-			"success_count": successCount,
-			"error_count":   len(results) - successCount,
-			"results":       results,
+			"success_count": len(successResults),
+			"error_count":   len(errorResults),
+			"data": gin.H{
+				"success": successResults,
+				"error":   errorResults,
+			},
 		})
 	}
 }
+
 func (h *UserHandler) GetUsersByFacultyCode(c *gin.Context) {
 	code := c.Param("faculty_code")
 	if code == "" {

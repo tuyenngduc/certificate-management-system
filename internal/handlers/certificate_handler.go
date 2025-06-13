@@ -82,8 +82,8 @@ func (h *CertificateHandler) ImportCertificatesFromExcel(c *gin.Context) {
 	}
 
 	var (
-		successList []models.CertificateResponse
-		errorList   []map[string]interface{}
+		successList = []map[string]interface{}{}
+		errorList   = []map[string]interface{}{}
 	)
 
 	for i := 1; i < len(rows); i++ {
@@ -126,7 +126,7 @@ func (h *CertificateHandler) ImportCertificatesFromExcel(c *gin.Context) {
 			CertificateType: strings.TrimSpace(certDegreeType),
 		}
 
-		resp, err := h.certificateService.CreateCertificate(c.Request.Context(), userClaims, req)
+		_, err = h.certificateService.CreateCertificate(c.Request.Context(), userClaims, req)
 		if err != nil {
 			var errMsg string
 			switch {
@@ -157,14 +157,18 @@ func (h *CertificateHandler) ImportCertificatesFromExcel(c *gin.Context) {
 			continue
 		}
 
-		successList = append(successList, *resp)
+		successList = append(successList, map[string]interface{}{
+			"row":    rowIndex,
+			"status": "Thêm thành công",
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"success": successList,
+			"error":   errorList,
+		},
 		"success_count": len(successList),
-		"error_count":   len(errorList),
-		"success":       successList,
-		"errors":        errorList,
 	})
 }
 
