@@ -14,7 +14,7 @@ type User struct {
 	FacultyID    primitive.ObjectID `bson:"faculty_id" json:"faculty"`
 	UniversityID primitive.ObjectID `bson:"university_id" json:"university_id"`
 	Course       string             `bson:"course" json:"course"`
-	Status       bool               `bson:"status" json:"status"`
+	Status       string             `bson:"status,omitempty"`
 	CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt    time.Time          `bson:"updated_at" json:"updated_at"`
 }
@@ -37,7 +37,7 @@ type UserResponse struct {
 	UniversityCode string             `json:"university_code"`
 	UniversityName string             `json:"university_name"`
 	Course         string             `json:"course"`
-	Status         bool               `json:"status"`
+	Status         string             `json:"status"`
 }
 
 type SearchUserParams struct {

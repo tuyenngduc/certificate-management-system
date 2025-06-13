@@ -146,6 +146,7 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 }
 func (r *userRepository) UpdateUser(ctx context.Context, id primitive.ObjectID, update bson.M) error {
 	result, err := r.col.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
+
 	if err != nil {
 		return err
 	}

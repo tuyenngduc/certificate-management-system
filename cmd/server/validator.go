@@ -2,6 +2,7 @@ package main
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -15,9 +16,18 @@ func InitValidator() {
 			return re.MatchString(fl.Field().String())
 		})
 
+		_ = v.RegisterValidation("certtype", func(fl validator.FieldLevel) bool {
+			val := strings.TrimSpace(fl.Field().String())
+			switch val {
+			case "Cử nhân", "Kỹ sư", "Thạc sĩ", "Tiến sĩ":
+				return true
+			default:
+				return false
+			}
+		})
+
 		v.RegisterStructValidation(models.ValidateCreateCertificateRequest, models.CreateCertificateRequest{})
 
-		println("Đăng ký certtype validator")
-
+		println("✅ Đăng ký validator thành công")
 	}
 }

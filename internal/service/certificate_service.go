@@ -92,7 +92,6 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 				return nil, common.ErrRegNoExists
 			}
 		}
-
 	} else {
 		if err := s.validateCertificateRequest(ctx, req, universityID); err != nil {
 			return nil, err
@@ -130,6 +129,37 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 
 	if err := s.certificateRepo.CreateCertificate(ctx, cert); err != nil {
 		return nil, err
+	}
+
+	fmt.Printf("[DEBUG] IsDegree: %v, CertificateType: %s\n", req.IsDegree, req.CertificateType)
+	if req.IsDegree {
+
+		var newStatus string
+		cleanType := strings.ToLower(strings.TrimSpace(req.CertificateType))
+		fmt.Printf("[DEBUG] CertificateType raw: '%s', cleaned: '%s'\n", req.CertificateType, cleanType)
+		switch strings.TrimSpace(req.CertificateType) {
+		case "Cử nhân":
+			newStatus = "Tốt nghiệp Cử nhân"
+		case "Kỹ sư":
+			newStatus = "Tốt nghiệp Kỹ sư"
+		case "Thạc sĩ":
+			newStatus = "Tốt nghiệp Thạc sĩ"
+		case "Tiến sĩ":
+			newStatus = "Tốt nghiệp Tiến sĩ"
+		}
+		fmt.Printf("User hiện tại: %s, newStatus cần cập nhật: %s\n", user.Status, newStatus)
+
+		if newStatus != "" && user.Status != newStatus {
+			update := bson.M{
+				"status":     newStatus,
+				"updated_at": time.Now(),
+			}
+			if err := s.userRepo.UpdateUser(ctx, user.ID, update); err != nil {
+				fmt.Printf("Không thể cập nhật trạng thái sinh viên: %v\n", err)
+			} else {
+				user.Status = newStatus
+			}
+		}
 	}
 
 	return &models.CertificateResponse{

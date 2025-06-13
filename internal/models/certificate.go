@@ -35,7 +35,7 @@ type Certificate struct {
 type CreateCertificateRequest struct {
 	IsDegree        bool      `json:"is_degree"`
 	StudentCode     string    `json:"student_code" binding:"required"`
-	CertificateType string    `json:"certificate_type"`
+	CertificateType string    `json:"certificate_type" binding:"certtype"`
 	Name            string    `json:"name"`
 	SerialNumber    string    `json:"serial_number"`
 	RegNo           string    `json:"reg_no"`
