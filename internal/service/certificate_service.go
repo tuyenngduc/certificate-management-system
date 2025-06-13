@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -19,6 +18,7 @@ import (
 
 type CertificateService interface {
 	GetAllCertificates(ctx context.Context) ([]*models.CertificateResponse, error)
+	GetCertificateByStudentCodeAndNameAndUniversity(ctx context.Context, studentCode, name string, universityID primitive.ObjectID) (*models.Certificate, error)
 	DeleteCertificateByID(ctx context.Context, id primitive.ObjectID) error
 	DeleteCertificate(ctx context.Context, id primitive.ObjectID) error
 	UploadCertificateFile(ctx context.Context, certificateID primitive.ObjectID, fileData []byte, filename string) (string, error)
@@ -65,14 +65,34 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 		return nil, common.ErrUserNotExisted
 	}
 	if user.FacultyID.IsZero() {
-		return nil, errors.New("người dùng chưa được gán khoa")
+		return nil, fmt.Errorf("người dùng chưa được gán khoa")
 	}
 
-	// Kiểm tra thông tin văn bằng hoặc chứng chỉ
 	if req.IsDegree {
 		if err := s.validateDegreeRequest(ctx, req, universityID); err != nil {
 			return nil, err
 		}
+
+		if req.SerialNumber != "" {
+			exists, err := s.certificateRepo.ExistsBySerial(ctx, universityID, req.SerialNumber, true)
+			if err != nil {
+				return nil, err
+			}
+			if exists {
+				return nil, common.ErrSerialNumberExists
+			}
+		}
+
+		if req.RegNo != "" {
+			exists, err := s.certificateRepo.ExistsByRegNo(ctx, universityID, req.RegNo, true)
+			if err != nil {
+				return nil, err
+			}
+			if exists {
+				return nil, common.ErrRegNoExists
+			}
+		}
+
 	} else {
 		if err := s.validateCertificateRequest(ctx, req, universityID); err != nil {
 			return nil, err
@@ -89,7 +109,8 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 		return nil, common.ErrUniversityNotFound
 	}
 
-	// Tạo certificate
+	now := time.Now()
+
 	cert := &models.Certificate{
 		ID:              primitive.NewObjectID(),
 		UserID:          user.ID,
@@ -103,8 +124,8 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 		RegNo:           req.RegNo,
 		IssueDate:       req.IssueDate,
 		Signed:          false,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	if err := s.certificateRepo.CreateCertificate(ctx, cert); err != nil {
@@ -131,9 +152,13 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 	}, nil
 }
 
+func (s *certificateService) GetCertificateByStudentCodeAndNameAndUniversity(ctx context.Context, studentCode, name string, universityID primitive.ObjectID) (*models.Certificate, error) {
+	return s.certificateRepo.FindCertificateByStudentCodeAndName(ctx, studentCode, name, universityID)
+}
+
 func (s *certificateService) validateDegreeRequest(ctx context.Context, req *models.CreateCertificateRequest, universityID primitive.ObjectID) error {
 	if req.CertificateType == "" || req.SerialNumber == "" || req.RegNo == "" || req.IssueDate.IsZero() {
-		return errors.New("thiếu thông tin bắt buộc cho văn bằng (CertificateType, SerialNumber, RegNo, IssueDate)")
+		return common.ErrMissingRequiredFieldsForDegree
 	}
 
 	singleDegreeTypes := map[string]bool{
@@ -158,10 +183,13 @@ func (s *certificateService) validateDegreeRequest(ctx context.Context, req *mod
 
 func (s *certificateService) validateCertificateRequest(ctx context.Context, req *models.CreateCertificateRequest, universityID primitive.ObjectID) error {
 	if req.Name == "" || req.IssueDate.IsZero() {
-		return errors.New("thiếu thông tin bắt buộc cho chứng chỉ (Name, IssueDate)")
+		return common.ErrMissingRequiredFieldsForCertificate
 	}
-	if req.SerialNumber != "" || req.RegNo != "" || req.CertificateType != "" {
-		return errors.New("không được truyền SerialNumber, RegNo hoặc CertificateType cho chứng chỉ")
+
+	if !req.IsDegree {
+		req.SerialNumber = ""
+		req.RegNo = ""
+		req.CertificateType = ""
 	}
 
 	alreadyIssued, err := s.certificateRepo.ExistsCertificateByStudentCodeAndName(ctx, req.StudentCode, universityID, req.Name)
@@ -314,6 +342,7 @@ func (s *certificateService) UploadCertificateFile(
 func (s *certificateService) GetCertificateBySerialAndUniversity(ctx context.Context, serial string, universityID primitive.ObjectID) (*models.Certificate, error) {
 	return s.certificateRepo.FindBySerialAndUniversity(ctx, serial, universityID)
 }
+
 func (s *certificateService) GetCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.CertificateResponse, error) {
 	cert, err := s.certificateRepo.FindLatestCertificateByUserID(ctx, userID)
 	if err != nil {

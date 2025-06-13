@@ -31,4 +31,9 @@ var (
 	//Certificate
 	ErrCertificateNotFound      = errors.New("certificate_not_found")
 	ErrCertificateAlreadyExists = errors.New("certificate_already_exists")
+	ErrSerialNumberExists       = errors.New("serial_number_exists")
+	ErrRegNoExists              = errors.New("reg_no_exists")
+
+	ErrMissingRequiredFieldsForDegree      = errors.New("missing_required_fields_for_degree")
+	ErrMissingRequiredFieldsForCertificate = errors.New("missing_required_fields_for_certificate")
 )

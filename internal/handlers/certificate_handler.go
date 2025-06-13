@@ -47,29 +47,37 @@ func NewCertificateHandler(
 func (h *CertificateHandler) ImportCertificatesFromExcel(c *gin.Context) {
 	formFile, err := c.FormFile("file")
 	if err != nil {
-		utils.Error(c, http.StatusBadRequest, "Không thể đọc file", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Không thể đọc file",
+		})
 		return
 	}
 
 	file, err := formFile.Open()
 	if err != nil {
-		utils.Error(c, http.StatusInternalServerError, "Lỗi khi mở file", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Lỗi khi mở file",
+		})
 		return
 	}
 	defer file.Close()
 
-	claims, _ := c.Get("claims")
+	claims, _ := c.Get(string(utils.ClaimsContextKey))
 	userClaims := claims.(*utils.CustomClaims)
 
 	f, err := excelize.OpenReader(file)
 	if err != nil {
-		utils.Error(c, http.StatusBadRequest, "File không hợp lệ", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "File không hợp lệ",
+		})
 		return
 	}
 
 	rows, err := f.GetRows("Sheet1")
 	if err != nil || len(rows) <= 1 {
-		utils.Error(c, http.StatusBadRequest, "Sheet1 không có dữ liệu", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Sheet1 không có dữ liệu",
+		})
 		return
 	}
 
@@ -79,9 +87,8 @@ func (h *CertificateHandler) ImportCertificatesFromExcel(c *gin.Context) {
 	)
 
 	for i := 1; i < len(rows); i++ {
-		rowIndex := i + 1 // Dòng thực tế trong Excel
+		rowIndex := i + 1
 
-		// Lấy dữ liệu từng ô
 		studentCode, _ := f.GetCellValue("Sheet1", fmt.Sprintf("A%d", rowIndex))
 		certType, _ := f.GetCellValue("Sheet1", fmt.Sprintf("B%d", rowIndex))
 		certName, _ := f.GetCellValue("Sheet1", fmt.Sprintf("C%d", rowIndex))
@@ -90,7 +97,6 @@ func (h *CertificateHandler) ImportCertificatesFromExcel(c *gin.Context) {
 		regNo, _ := f.GetCellValue("Sheet1", fmt.Sprintf("F%d", rowIndex))
 		certDegreeType, _ := f.GetCellValue("Sheet1", fmt.Sprintf("G%d", rowIndex))
 
-		// Kiểm tra dữ liệu bắt buộc
 		if strings.TrimSpace(studentCode) == "" || strings.TrimSpace(certType) == "" || strings.TrimSpace(certName) == "" || strings.TrimSpace(issueDateStr) == "" {
 			errorList = append(errorList, map[string]interface{}{
 				"row":   rowIndex,
@@ -99,7 +105,6 @@ func (h *CertificateHandler) ImportCertificatesFromExcel(c *gin.Context) {
 			continue
 		}
 
-		// Parse ngày cấp
 		issueDate, err := utils.ParseDate(issueDateStr)
 		if err != nil {
 			errorList = append(errorList, map[string]interface{}{
@@ -123,9 +128,31 @@ func (h *CertificateHandler) ImportCertificatesFromExcel(c *gin.Context) {
 
 		resp, err := h.certificateService.CreateCertificate(c.Request.Context(), userClaims, req)
 		if err != nil {
+			var errMsg string
+			switch {
+			case errors.Is(err, common.ErrUserNotExisted):
+				errMsg = "Sinh viên không tồn tại"
+			case errors.Is(err, common.ErrCertificateAlreadyExists):
+				errMsg = "Văn bằng/chứng chỉ đã tồn tại"
+			case errors.Is(err, common.ErrFacultyNotFound):
+				errMsg = "Không tìm thấy khoa"
+			case errors.Is(err, common.ErrUniversityNotFound):
+				errMsg = "Không tìm thấy trường"
+			case errors.Is(err, common.ErrSerialNumberExists):
+				errMsg = "Số hiệu văn bằng đã tồn tại"
+			case errors.Is(err, common.ErrRegNoExists):
+				errMsg = "Số vào sổ gốc đã tồn tại"
+			case errors.Is(err, common.ErrMissingRequiredFieldsForCertificate):
+				errMsg = "Thiếu thông tin bắt buộc cho chứng chỉ (Tên, Ngày cấp)"
+			case errors.Is(err, common.ErrMissingRequiredFieldsForDegree):
+				errMsg = "Thiếu thông tin bắt buộc cho văn bằng (Loại văn bằng, Số hiệu, Số vào sổ gốc, Ngày cấp)"
+			default:
+				errMsg = "Lỗi hệ thống: " + err.Error()
+			}
+
 			errorList = append(errorList, map[string]interface{}{
 				"row":   rowIndex,
-				"error": err.Error(),
+				"error": errMsg,
 			})
 			continue
 		}
@@ -133,7 +160,7 @@ func (h *CertificateHandler) ImportCertificatesFromExcel(c *gin.Context) {
 		successList = append(successList, *resp)
 	}
 
-	utils.Success(c, http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"success_count": len(successList),
 		"error_count":   len(errorList),
 		"success":       successList,
@@ -145,13 +172,22 @@ func (h *CertificateHandler) CreateCertificate(c *gin.Context) {
 	var req models.CreateCertificateRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.Error(c, http.StatusBadRequest, "Dữ liệu không hợp lệ", err)
+		if validationErrs, ok := common.ParseValidationError(err); ok {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Dữ liệu không hợp lệ",
+				"details": validationErrs,
+			})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Dữ liệu không hợp lệ",
+		})
 		return
 	}
+
 	claims, ok := c.MustGet("claims").(*utils.CustomClaims)
 	if !ok || claims == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "unauthorized",
 			"message": "Không xác thực được người dùng",
 		})
 		return
@@ -159,23 +195,55 @@ func (h *CertificateHandler) CreateCertificate(c *gin.Context) {
 
 	res, err := h.certificateService.CreateCertificate(c.Request.Context(), claims, &req)
 	if err != nil {
-		switch err {
-		case common.ErrInvalidToken:
-			utils.Error(c, http.StatusUnauthorized, "Token không hợp lệ", err)
-		case common.ErrUserNotExisted:
-			utils.Error(c, http.StatusNotFound, "Sinh viên không tồn tại", err)
-		case common.ErrCertificateAlreadyExists:
-			utils.Error(c, http.StatusConflict, "Văn bằng/chứng chỉ đã tồn tại", err)
-		case common.ErrFacultyNotFound:
-			utils.Error(c, http.StatusNotFound, "Không tìm thấy khoa", err)
-		case common.ErrUniversityNotFound:
-			utils.Error(c, http.StatusNotFound, "Không tìm thấy trường", err)
+		switch {
+		case errors.Is(err, common.ErrInvalidToken):
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "Token không hợp lệ",
+			})
+		case errors.Is(err, common.ErrUserNotExisted):
+			c.JSON(http.StatusNotFound, gin.H{
+				"message": "Sinh viên không tồn tại",
+			})
+		case errors.Is(err, common.ErrCertificateAlreadyExists):
+			c.JSON(http.StatusConflict, gin.H{
+				"message": "Văn bằng/chứng chỉ đã tồn tại",
+			})
+		case errors.Is(err, common.ErrFacultyNotFound):
+			c.JSON(http.StatusNotFound, gin.H{
+				"message": "Không tìm thấy khoa",
+			})
+		case errors.Is(err, common.ErrUniversityNotFound):
+			c.JSON(http.StatusNotFound, gin.H{
+				"message": "Không tìm thấy trường",
+			})
+		case errors.Is(err, common.ErrSerialNumberExists):
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Số hiệu văn bằng đã tồn tại trong hệ thống",
+			})
+		case errors.Is(err, common.ErrRegNoExists):
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Số vào sổ gốc đã tồn tại trong hệ thống",
+			})
+		case errors.Is(err, common.ErrMissingRequiredFieldsForCertificate):
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Thiếu thông tin bắt buộc cho chứng chỉ (Tên, Ngày cấp)",
+			})
+		case errors.Is(err, common.ErrMissingRequiredFieldsForDegree):
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "Thiếu thông tin bắt buộc cho văn bằng (Loại văn bằng, Số hiệu, Số vào sổ gốc, Ngày cấp)",
+			})
 		default:
-			utils.Error(c, http.StatusInternalServerError, "Lỗi hệ thống", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": "Lỗi hệ thống",
+			})
+
 		}
 		return
 	}
-	utils.Success(c, http.StatusCreated, res)
+
+	c.JSON(http.StatusCreated, gin.H{
+		"data": res,
+	})
 }
 
 func (h *CertificateHandler) GetAllCertificates(c *gin.Context) {
@@ -237,21 +305,7 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 		return
 	}
 
-	src, err := file.Open()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể mở file"})
-		return
-	}
-	defer src.Close()
-
-	fileData, err := io.ReadAll(src)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể đọc file"})
-		return
-	}
-
-	// Chỉ lấy serial number từ tên file (không còn kiểm tra mã trường)
-	serialNumber := strings.TrimSuffix(file.Filename, ext)
+	isDegree := c.Query("isdegree") == "true"
 
 	// Lấy university từ token
 	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
@@ -265,26 +319,59 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 		return
 	}
 
-	// Tìm certificate theo serial number
-	certificate, err := h.certificateService.GetCertificateBySerialAndUniversity(c.Request.Context(), serialNumber, university.ID)
+	// Tìm certificate theo logic khác nhau tùy theo isDegree
+	filenameWithoutExt := strings.TrimSuffix(file.Filename, ext)
+	var certificate *models.Certificate
 
-	if errors.Is(err, mongo.ErrNoDocuments) || certificate == nil || certificate.ID.IsZero() {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng với số serial đã cung cấp"})
+	if isDegree {
+		// Tên file là register_number.pdf
+		registerNumber := filenameWithoutExt
+		certificate, err = h.certificateService.GetCertificateBySerialAndUniversity(
+			c.Request.Context(), registerNumber, university.ID)
+	} else {
+		// Tên file là studentCode_certificateName.pdf
+		parts := strings.SplitN(filenameWithoutExt, "_", 2)
+		if len(parts) != 2 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Tên file không hợp lệ. Phải có dạng <MaSinhVien>_<TenChungChi>.pdf"})
+			return
+		}
+		studentCode := parts[0]
+		certificateName := parts[1]
+
+		certificate, err = h.certificateService.GetCertificateByStudentCodeAndNameAndUniversity(
+			c.Request.Context(), studentCode, certificateName, university.ID)
+	}
+
+	if err != nil || certificate == nil || certificate.ID.IsZero() {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng/chứng chỉ phù hợp"})
 		return
 	}
 
-	// Kiểm tra xem văn bằng có thuộc trường đang đăng nhập không
 	if certificate.UniversityID != university.ID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Bạn không được phép cập nhật văn bằng này"})
 		return
 	}
 
 	if certificate.Path != "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Văn bằng này đã có file, không thể ghi đè"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Văn bằng/chứng chỉ đã có file, không thể ghi đè"})
 		return
 	}
 
-	filePath, err := h.certificateService.UploadCertificateFile(c.Request.Context(), certificate.ID, fileData, file.Filename)
+	src, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể mở file"})
+		return
+	}
+	defer src.Close()
+
+	fileData, err := io.ReadAll(src)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể đọc file"})
+		return
+	}
+
+	filePath, err := h.certificateService.UploadCertificateFile(
+		c.Request.Context(), certificate.ID, fileData, file.Filename)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Tải lên thất bại: " + err.Error()})
 		return

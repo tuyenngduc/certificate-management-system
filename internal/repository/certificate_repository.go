@@ -13,7 +13,11 @@ import (
 
 type CertificateRepository interface {
 	GetAllCertificates(ctx context.Context) ([]*models.Certificate, error)
+	FindOne(ctx context.Context, filter interface{}) (*models.Certificate, error)
 	GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.Certificate, error)
+	FindCertificateByStudentCodeAndName(ctx context.Context, studentCode, name string, universityID primitive.ObjectID) (*models.Certificate, error)
+	ExistsByRegNo(ctx context.Context, universityID primitive.ObjectID, regNo string, isDegree bool) (bool, error)
+	ExistsBySerial(ctx context.Context, universityID primitive.ObjectID, serial string, isDegree bool) (bool, error)
 	DeleteCertificate(ctx context.Context, id primitive.ObjectID) error
 	DeleteCertificateByID(ctx context.Context, id primitive.ObjectID) error
 	CreateCertificate(ctx context.Context, cert *models.Certificate) error
@@ -21,7 +25,6 @@ type CertificateRepository interface {
 	FindBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error)
 	FindLatestCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.Certificate, error)
 	FindCertificate(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error)
-	UpdateVerificationCode(ctx context.Context, id primitive.ObjectID, code string, expired time.Time) error
 	GetByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error)
 	ExistsCertificateByStudentCodeAndName(ctx context.Context, studentCode string, universityID primitive.ObjectID, name string) (bool, error)
 
@@ -105,6 +108,14 @@ func (r *certificateRepository) FindLatestCertificateByUserID(ctx context.Contex
 		return nil, err
 	}
 	return &certificate, nil
+}
+func (r *certificateRepository) FindOne(ctx context.Context, filter interface{}) (*models.Certificate, error) {
+	var cert models.Certificate
+	err := r.col.FindOne(ctx, filter).Decode(&cert)
+	if err != nil {
+		return nil, err
+	}
+	return &cert, nil
 }
 
 func (r *certificateRepository) FindCertificate(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error) {
@@ -203,4 +214,38 @@ func (r *certificateRepository) ExistsCertificateByStudentCodeAndName(ctx contex
 		return false, err
 	}
 	return count > 0, nil
+}
+func (r *certificateRepository) FindCertificateByStudentCodeAndName(ctx context.Context, studentCode, name string, universityID primitive.ObjectID) (*models.Certificate, error) {
+	filter := bson.M{
+		"student_code":  studentCode,
+		"name":          name,
+		"university_id": universityID,
+		"is_degree":     false,
+	}
+	var cert models.Certificate
+	err := r.col.FindOne(ctx, filter).Decode(&cert)
+	if err != nil {
+		return nil, err
+	}
+	return &cert, nil
+}
+
+func (r *certificateRepository) ExistsBySerial(ctx context.Context, universityID primitive.ObjectID, serial string, isDegree bool) (bool, error) {
+	filter := bson.M{
+		"university_id": universityID,
+		"serial_number": serial,
+		"is_degree":     isDegree,
+	}
+	count, err := r.col.CountDocuments(ctx, filter)
+	return count > 0, err
+}
+
+func (r *certificateRepository) ExistsByRegNo(ctx context.Context, universityID primitive.ObjectID, regNo string, isDegree bool) (bool, error) {
+	filter := bson.M{
+		"university_id": universityID,
+		"reg_no":        regNo,
+		"is_degree":     isDegree,
+	}
+	count, err := r.col.CountDocuments(ctx, filter)
+	return count > 0, err
 }
