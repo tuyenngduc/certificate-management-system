@@ -305,7 +305,7 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 		return
 	}
 
-	isDegree := c.Query("isdegree") == "true"
+	isDegree := c.Query("isDegree") == "true"
 	certificateName := c.Query("name") // chỉ cần khi isDegree = false
 
 	// Lấy university từ token
