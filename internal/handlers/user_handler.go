@@ -161,19 +161,15 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	claimsVal, exists := c.Get("claims")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không có quyền hoặc token không hợp lệ"})
-		return
-	}
-
+	// Lấy claims từ context
+	claimsVal := c.Request.Context().Value(utils.ClaimsContextKey)
 	claims, ok := claimsVal.(*utils.CustomClaims)
-	if !ok {
+	if !ok || claims == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không có quyền hoặc token không hợp lệ"})
 		return
 	}
 
-	// Tạo context có chứa claims để truyền vào service
+	// Tạo context mới có chứa claims để truyền vào service
 	ctx := context.WithValue(c.Request.Context(), utils.ClaimsContextKey, claims)
 
 	err = h.userService.UpdateUser(ctx, id, req)

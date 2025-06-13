@@ -30,5 +30,5 @@ var (
 
 	//Certificate
 	ErrCertificateNotFound      = errors.New("certificate_not_found")
-	ErrCertificateAlreadyExists = errors.New("certificate_already_exists ")
+	ErrCertificateAlreadyExists = errors.New("certificate_already_exists")
 )

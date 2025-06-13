@@ -37,6 +37,7 @@ func TranslateError(field, tag string) string {
 		},
 		"CertificateType": {
 			"required": "Loại văn bằng không được để trống",
+			"certtype": "Loại văn bằng phải là Cử nhân, Kỹ Sư, Thạc sĩ hoặc Tiến sĩ",
 		},
 		"Name": {
 			"required": "Tên văn bằng không được để trống",
@@ -92,7 +93,9 @@ func ParseValidationError(err error) (map[string]string, bool) {
 		for _, e := range ve {
 			field := e.Field()
 			tag := e.Tag()
-			errs[field] = TranslateError(field, tag)
+			if field != "" && tag != "" {
+				errs[field] = TranslateError(field, tag)
+			}
 		}
 		return errs, true
 	}

@@ -15,6 +15,7 @@ type CertificateRepository interface {
 	GetAllCertificates(ctx context.Context) ([]*models.Certificate, error)
 	GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.Certificate, error)
 	DeleteCertificate(ctx context.Context, id primitive.ObjectID) error
+	DeleteCertificateByID(ctx context.Context, id primitive.ObjectID) error
 	CreateCertificate(ctx context.Context, cert *models.Certificate) error
 	UpdateCertificatePath(ctx context.Context, certificateID primitive.ObjectID, path string) error
 	FindBySerialNumber(ctx context.Context, serial string) (*models.Certificate, error)
@@ -22,6 +23,9 @@ type CertificateRepository interface {
 	FindCertificate(ctx context.Context, filter bson.M, page, pageSize int) ([]*models.Certificate, int64, error)
 	UpdateVerificationCode(ctx context.Context, id primitive.ObjectID, code string, expired time.Time) error
 	GetByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.Certificate, error)
+	ExistsCertificateByStudentCodeAndName(ctx context.Context, studentCode string, universityID primitive.ObjectID, name string) (bool, error)
+
+	ExistsDegreeByStudentCodeAndType(ctx context.Context, studentCode string, universityID primitive.ObjectID, certType string) (bool, error)
 	FindBySerialAndUniversity(ctx context.Context, serial string, universityID primitive.ObjectID) (*models.Certificate, error)
 }
 type certificateRepository struct {
@@ -159,4 +163,44 @@ func (r *certificateRepository) GetByUserID(ctx context.Context, userID primitiv
 		return nil, err
 	}
 	return certs, nil
+}
+func (r *certificateRepository) DeleteCertificateByID(ctx context.Context, id primitive.ObjectID) error {
+	filter := bson.M{"_id": id}
+	res, err := r.col.DeleteOne(ctx, filter)
+	if err != nil {
+		return err
+	}
+	if res.DeletedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
+}
+func (r *certificateRepository) ExistsDegreeByStudentCodeAndType(ctx context.Context, studentCode string, universityID primitive.ObjectID, certType string) (bool, error) {
+	filter := bson.M{
+		"student_code":        studentCode,
+		"university_id":       universityID,
+		"certificate_type":    certType,
+		"serial_number":       bson.M{"$ne": ""}, // Văn bằng có serial
+		"registration_number": bson.M{"$ne": ""}, // Có số vào sổ gốc
+	}
+
+	count, err := r.col.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+func (r *certificateRepository) ExistsCertificateByStudentCodeAndName(ctx context.Context, studentCode string, universityID primitive.ObjectID, name string) (bool, error) {
+	filter := bson.M{
+		"student_code":  studentCode,
+		"university_id": universityID,
+		"name":          name,
+		"is_degree":     false,
+	}
+
+	count, err := r.col.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

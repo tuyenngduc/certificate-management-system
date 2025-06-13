@@ -70,6 +70,7 @@ func SetupRouter(
 	certificateGroup.GET("/search", certificateHandler.SearchCertificates)
 	certificateGroup.GET("/my-certificate", certificateHandler.GetMyCertificates)
 	certificateGroup.POST("/import-excel", certificateHandler.ImportCertificatesFromExcel)
+	certificateGroup.DELETE("/:id", certificateHandler.DeleteCertificate)
 
 	// ===== University routes =====
 	universityGroup := api.Group("/universities")
