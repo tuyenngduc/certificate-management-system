@@ -563,6 +563,7 @@ func (s *certificateService) GetCertificatesByUserID(ctx context.Context, userID
 			Path:            cert.Path,
 			FacultyCode:     faculty.FacultyCode,
 			FacultyName:     faculty.FacultyName,
+			IssueDate:       cert.IssueDate.Format("02/01/2006"),
 			UniversityCode:  university.UniversityCode,
 			UniversityName:  university.UniversityName,
 			Signed:          cert.Signed,

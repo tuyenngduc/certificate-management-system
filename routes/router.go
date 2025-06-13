@@ -65,7 +65,6 @@ func SetupRouter(
 	certificateGroup.GET("/:id", certificateHandler.GetCertificateByID)
 	certificateGroup.POST("/upload-pdf", certificateHandler.UploadCertificateFile)
 	certificateGroup.GET("/file/:id", certificateHandler.GetCertificateFile)
-	certificateGroup.GET("/my-file", certificateHandler.GetMyCertificateFile)
 	certificateGroup.GET("/student/:id", certificateHandler.GetCertificatesByStudentID)
 	certificateGroup.GET("/search", certificateHandler.SearchCertificates)
 	certificateGroup.GET("/my-certificate", certificateHandler.GetMyCertificates)

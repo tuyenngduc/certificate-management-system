@@ -532,58 +532,6 @@ func (h *CertificateHandler) GetMyCertificates(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": certificates})
 }
 
-func (h *CertificateHandler) GetMyCertificateFile(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	// Lấy claims từ context
-	claimsRaw, exists := c.Get(string(utils.ClaimsContextKey))
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không tìm thấy thông tin người dùng"})
-		return
-	}
-
-	claims, ok := claimsRaw.(*utils.CustomClaims)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Thông tin token không hợp lệ"})
-		return
-	}
-
-	userID, err := primitive.ObjectIDFromHex(claims.UserID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID trong token không hợp lệ"})
-		return
-	}
-
-	// Lấy certificate theo user_id
-	certificate, err := h.certificateService.GetCertificateByUserID(ctx, userID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng cho người dùng"})
-		return
-	}
-
-	if certificate.Path == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Văn bằng chưa có file"})
-		return
-	}
-
-	object, err := h.minioClient.Client.GetObject(ctx, h.minioClient.Bucket, certificate.Path, minio.GetObjectOptions{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không đọc được file từ MinIO"})
-		return
-	}
-	defer object.Close()
-
-	fileData, err := io.ReadAll(object)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể đọc nội dung file"})
-		return
-	}
-
-	contentType := http.DetectContentType(fileData)
-
-	c.DataFromReader(http.StatusOK, int64(len(fileData)), contentType, bytes.NewReader(fileData), nil)
-}
-
 func (h *CertificateHandler) DeleteCertificate(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := primitive.ObjectIDFromHex(idStr)
