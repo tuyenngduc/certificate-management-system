@@ -80,8 +80,8 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 	if params.Email != "" {
 		filter["email"] = bson.M{"$regex": params.Email, "$options": "i"}
 	}
-	if params.Status != nil {
-		filter["status"] = *params.Status
+	if params.Status != 0 {
+		filter["status"] = params.Status
 	}
 
 	if params.Faculty != "" {

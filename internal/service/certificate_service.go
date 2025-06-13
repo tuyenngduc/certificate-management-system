@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -134,22 +135,22 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 	fmt.Printf("[DEBUG] IsDegree: %v, CertificateType: %s\n", req.IsDegree, req.CertificateType)
 	if req.IsDegree {
 
-		var newStatus string
-		cleanType := strings.ToLower(strings.TrimSpace(req.CertificateType))
-		fmt.Printf("[DEBUG] CertificateType raw: '%s', cleaned: '%s'\n", req.CertificateType, cleanType)
+		var newStatus int
 		switch strings.TrimSpace(req.CertificateType) {
 		case "Cử nhân":
-			newStatus = "Tốt nghiệp Cử nhân"
+			newStatus = 1
 		case "Kỹ sư":
-			newStatus = "Tốt nghiệp Kỹ sư"
+			newStatus = 2
 		case "Thạc sĩ":
-			newStatus = "Tốt nghiệp Thạc sĩ"
+			newStatus = 3
 		case "Tiến sĩ":
-			newStatus = "Tốt nghiệp Tiến sĩ"
+			newStatus = 4
 		}
-		fmt.Printf("User hiện tại: %s, newStatus cần cập nhật: %s\n", user.Status, newStatus)
 
-		if newStatus != "" && user.Status != newStatus {
+		fmt.Printf("User hiện tại: %v, newStatus cần cập nhật: %d\n", user.Status, newStatus)
+
+		currentStatus, _ := strconv.Atoi(fmt.Sprintf("%v", user.Status))
+		if newStatus != 0 && currentStatus != newStatus {
 			update := bson.M{
 				"status":     newStatus,
 				"updated_at": time.Now(),
@@ -160,6 +161,7 @@ func (s *certificateService) CreateCertificate(ctx context.Context, claims *util
 				user.Status = newStatus
 			}
 		}
+
 	}
 
 	return &models.CertificateResponse{
