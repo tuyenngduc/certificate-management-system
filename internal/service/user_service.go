@@ -233,7 +233,7 @@ func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req
 	update := bson.M{}
 
 	// Lấy claims từ context
-	claimsVal := ctx.Value("claims")
+	claimsVal := ctx.Value(utils.ClaimsContextKey)
 	claims, ok := claimsVal.(*utils.CustomClaims)
 	if !ok || claims == nil {
 		return common.ErrUnauthorized
