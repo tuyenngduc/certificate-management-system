@@ -21,7 +21,7 @@ type CertificateService interface {
 	GetCertificateByStudentCodeAndNameAndUniversity(ctx context.Context, studentCode, name string, universityID primitive.ObjectID) (*models.Certificate, error)
 	DeleteCertificateByID(ctx context.Context, id primitive.ObjectID) error
 	DeleteCertificate(ctx context.Context, id primitive.ObjectID) error
-	UploadCertificateFile(ctx context.Context, certificateID primitive.ObjectID, fileData []byte, filename string) (string, error)
+	UploadCertificateFile(ctx context.Context, certificateID primitive.ObjectID, fileData []byte, filename string, isDegree bool, certificateName string) (string, error)
 	GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.CertificateResponse, error)
 	GetCertificateBySerialAndUniversity(ctx context.Context, serial string, universityID primitive.ObjectID) (*models.Certificate, error)
 	GetCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.CertificateResponse, error)
@@ -342,6 +342,8 @@ func (s *certificateService) UploadCertificateFile(
 	certificateID primitive.ObjectID,
 	fileData []byte,
 	filename string,
+	isDegree bool,
+	certificateName string,
 ) (string, error) {
 	certificate, err := s.certificateRepo.GetCertificateByID(ctx, certificateID)
 	if err != nil {
@@ -353,7 +355,15 @@ func (s *certificateService) UploadCertificateFile(
 		return "", fmt.Errorf("không tìm thấy trường đại học: %w", err)
 	}
 
-	objectKey := fmt.Sprintf("certificates/%s/%s", university.UniversityCode, filename)
+	var objectKey string
+	if isDegree {
+		objectKey = fmt.Sprintf("certificates/%s/diploma/%s", university.UniversityCode, filename)
+	} else {
+		// Làm sạch tên chứng chỉ (nếu cần)
+		cleanName := strings.ReplaceAll(strings.TrimSpace(certificateName), " ", "_")
+		objectKey = fmt.Sprintf("certificates/%s/%s/%s", university.UniversityCode, cleanName, filename)
+	}
+
 	contentType := http.DetectContentType(fileData)
 
 	err = s.minioClient.UploadFile(ctx, objectKey, fileData, contentType)

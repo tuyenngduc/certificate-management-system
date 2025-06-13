@@ -306,6 +306,7 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 	}
 
 	isDegree := c.Query("isdegree") == "true"
+	certificateName := c.Query("name") // chỉ cần khi isDegree = false
 
 	// Lấy university từ token
 	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
@@ -319,25 +320,22 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 		return
 	}
 
-	// Tìm certificate theo logic khác nhau tùy theo isDegree
 	filenameWithoutExt := strings.TrimSuffix(file.Filename, ext)
 	var certificate *models.Certificate
 
 	if isDegree {
-		// Tên file là register_number.pdf
-		registerNumber := filenameWithoutExt
+		// Tên file là serial_number.pdf
+		serialNumber := filenameWithoutExt
 		certificate, err = h.certificateService.GetCertificateBySerialAndUniversity(
-			c.Request.Context(), registerNumber, university.ID)
+			c.Request.Context(), serialNumber, university.ID)
 	} else {
-		// Tên file là studentCode_certificateName.pdf
-		parts := strings.SplitN(filenameWithoutExt, "_", 2)
-		if len(parts) != 2 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Tên file không hợp lệ. Phải có dạng <MaSinhVien>_<TenChungChi>.pdf"})
+		// Tên file là student_code.pdf, certificate name lấy từ query
+		if certificateName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu tên chứng chỉ (query param 'name')"})
 			return
 		}
-		studentCode := parts[0]
-		certificateName := parts[1]
 
+		studentCode := filenameWithoutExt
 		certificate, err = h.certificateService.GetCertificateByStudentCodeAndNameAndUniversity(
 			c.Request.Context(), studentCode, certificateName, university.ID)
 	}
@@ -371,7 +369,7 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 	}
 
 	filePath, err := h.certificateService.UploadCertificateFile(
-		c.Request.Context(), certificate.ID, fileData, file.Filename)
+		c.Request.Context(), certificate.ID, fileData, file.Filename, isDegree, certificateName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Tải lên thất bại: " + err.Error()})
 		return
