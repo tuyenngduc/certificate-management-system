@@ -98,3 +98,8 @@ func ValidateCreateCertificateRequest(sl validator.StructLevel) {
 		}
 	}
 }
+
+type CertificateSimpleResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"certificate_name"`
+}

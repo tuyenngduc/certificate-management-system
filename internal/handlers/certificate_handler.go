@@ -556,3 +556,29 @@ func (h *CertificateHandler) DeleteCertificate(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Xóa văn bằng thành công"})
 }
+func (h *CertificateHandler) GetMyCertificateNames(c *gin.Context) {
+	val, exists := c.Get(string(utils.ClaimsContextKey))
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Bạn chưa đăng nhập hoặc token không hợp lệ"})
+		return
+	}
+	claims, ok := val.(*utils.CustomClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ"})
+		return
+	}
+
+	userID, err := primitive.ObjectIDFromHex(claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Token không hợp lệ"})
+		return
+	}
+
+	certificates, err := h.certificateService.GetSimpleCertificatesByUserID(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi hệ thống"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": certificates})
+}

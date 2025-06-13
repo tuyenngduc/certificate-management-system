@@ -28,6 +28,7 @@ type CertificateService interface {
 	GetCertificateByUserID(ctx context.Context, userID primitive.ObjectID) (*models.CertificateResponse, error)
 	CreateCertificate(ctx context.Context, claims *utils.CustomClaims, req *models.CreateCertificateRequest) (*models.CertificateResponse, error)
 	GetCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.CertificateResponse, error)
+	GetSimpleCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.CertificateSimpleResponse, error)
 	SearchCertificates(ctx context.Context, params models.SearchCertificateParams) ([]*models.CertificateResponse, int64, error)
 }
 
@@ -580,4 +581,21 @@ func (s *certificateService) GetCertificatesByUserID(ctx context.Context, userID
 
 func (s *certificateService) DeleteCertificateByID(ctx context.Context, id primitive.ObjectID) error {
 	return s.certificateRepo.DeleteCertificateByID(ctx, id)
+}
+
+func (s *certificateService) GetSimpleCertificatesByUserID(ctx context.Context, userID primitive.ObjectID) ([]*models.CertificateSimpleResponse, error) {
+	certs, err := s.certificateRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var responses []*models.CertificateSimpleResponse
+	for _, cert := range certs {
+		responses = append(responses, &models.CertificateSimpleResponse{
+			ID:   cert.ID.Hex(),
+			Name: cert.Name,
+		})
+	}
+
+	return responses, nil
 }
