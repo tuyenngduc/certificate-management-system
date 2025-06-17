@@ -21,7 +21,7 @@ Hyperledger Fabric: Blockchain để lưu trữ và xác minh văn bằng.
 
 Frontend
 
-React.js: Thư viện JavaScript để xây dựng giao diện người dùng.
+Next.js: Thư viện JavaScript để xây dựng giao diện người dùng.
 Tailwind CSS: Framework CSS để thiết kế giao diện hiện đại và responsive.
 
 DevOps
@@ -35,29 +35,29 @@ Digital Signature: Đảm bảo tính xác thực và toàn vẹn của văn b�
 
 Cấu trúc thư mục
 ├── cmd
-│   └── server
-│       ├── admin_seeder.go        # Khởi tạo tài khoản admin
-│       ├── main.go                # Điểm vào chính của ứng dụng
-│       └── validator.go           # Xử lý xác thực dữ liệu đầu vào
-├── docker-compose.yml             # Cấu hình Docker Compose
-├── Dockerfile                     # Cấu hình Docker cho ứng dụng
-├── go.mod                         # Quản lý phụ thuộc Go
-├── go.sum                         # Checksum của phụ thuộc
+│ └── server
+│ ├── admin_seeder.go # Khởi tạo tài khoản admin
+│ ├── main.go # Điểm vào chính của ứng dụng
+│ └── validator.go # Xử lý xác thực dữ liệu đầu vào
+├── docker-compose.yml # Cấu hình Docker Compose
+├── Dockerfile # Cấu hình Docker cho ứng dụng
+├── go.mod # Quản lý phụ thuộc Go
+├── go.sum # Checksum của phụ thuộc
 ├── internal
-│   ├── common                     # Các tiện ích chung
-│   ├── handlers                   # Xử lý các yêu cầu HTTP
-│   ├── middleware                 # Middleware
-│   ├── models                     # Định nghĩa các mô hình dữ liệu
-│   ├── repository                 # Tương tác với cơ sở dữ liệu
-│   └── service                    # Logic nghiệp vụ
+│ ├── common # Các tiện ích chung
+│ ├── handlers # Xử lý các yêu cầu HTTP
+│ ├── middleware # Middleware
+│ ├── models # Định nghĩa các mô hình dữ liệu
+│ ├── repository # Tương tác với cơ sở dữ liệu
+│ └── service # Logic nghiệp vụ
 ├── pkg
-│   └── database
-│       ├── minio.go               # Kết nối và tương tác với MinIO
-│       └── mongodb.go             # Kết nối và tương tác với MongoDB
+│ └── database
+│ ├── minio.go # Kết nối và tương tác với MinIO
+│ └── mongodb.go # Kết nối và tương tác với MongoDB
 ├── routes
-│   └── router.go                  # Định nghĩa các tuyến API
-├── utils                          # Các tiện ích hỗ trợ
-└── web                            # Mã nguồn frontend (React.js)
+│ └── router.go # Định nghĩa các tuyến API
+├── utils # Các tiện ích hỗ trợ
+└── web # Mã nguồn frontend (React.js)
 
 Yêu cầu cài đặt
 
@@ -68,9 +68,10 @@ Node.js: Phiên bản 18.x trở lên.
 Hyperledger Fabric: Yêu cầu thiết lập môi trường blockchain (xem tài liệu chính thức của Hyperledger Fabric).
 
 Hướng dẫn cài đặt và chạy
+
 1. Clone dự án
-git clone https://github.com/tuyenngduc/certificate-management-system.git
-cd certificate-management-system
+   git clone https://github.com/tuyenngduc/certificate-management-system.git
+   cd certificate-management-system
 
 2. Thiết lập môi trường
 
@@ -79,29 +80,34 @@ Cài đặt các phụ thuộc Go:
 go mod tidy
 
 3. Thiết lập file môi trường (.env)
-Tạo một file .env trong thư mục gốc của dự án.
-Sao chép các biến môi trường cần thiết từ mẫu dưới đây và thay thế bằng các giá trị phù hợp với môi trường của bạn:
+   Tạo một file .env trong thư mục gốc của dự án.
+   Sao chép các biến môi trường cần thiết từ mẫu dưới đây và thay thế bằng các giá trị phù hợp với môi trường của bạn:
 
 # MongoDB Configuration
+
 MONGODB_URI=mongodb://<username>:<password>@<host>:<port>
 DB_NAME=<database_name>
 MONGO_INITDB_ROOT_USERNAME=<mongo_username>
 MONGO_INITDB_ROOT_PASSWORD=<mongo_password>
 
 # Admin Account Configuration
+
 ADMIN_EMAIL=<admin_email>
 ADMIN_PASSWORD=<admin_password>
 
 # Email Configuration
+
 EMAIL_FROM=<email_address>
 EMAIL_PASSWORD=<email_password_or_app_password>
 EMAIL_HOST=<smtp_host>
 EMAIL_PORT=<smtp_port>
 
 # JWT Configuration
+
 JWT_SECRET=<random_secure_string>
 
 # MinIO Configuration
+
 MINIO_ROOT_USER=<minio_username>
 MINIO_ROOT_PASSWORD=<minio_password>
 MINIO_ENDPOINT=<minio_host>:<minio_port>
@@ -132,4 +138,3 @@ Tham khảo tài liệu chính thức của Hyperledger Fabric để thiết l�
 Tác giả: Tuyen Nguyen Duc
 Email: tuyenngduc12@gmail.com
 GitHub: tuyenngduc
-
