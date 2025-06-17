@@ -102,14 +102,12 @@ func (s *universityService) ApproveOrRejectUniversity(ctx context.Context, idStr
 			return common.ErrAccountUniversityAlreadyExists
 		}
 
-		// Tạo mật khẩu ngẫu nhiên
 		rawPassword := utils.GenerateRandomPassword(10)
 		hashed, err := utils.HashPassword(rawPassword)
 		if err != nil {
 			return err
 		}
 
-		// Tạo account quản trị trường
 		account := &models.Account{
 			ID:            primitive.NewObjectID(),
 			UniversityID:  university.ID,
@@ -124,7 +122,6 @@ func (s *universityService) ApproveOrRejectUniversity(ctx context.Context, idStr
 			return err
 		}
 
-		// Gửi email thông báo
 		emailBody := fmt.Sprintf(`Xin chào,
 
 Trường %s đã được phê duyệt truy cập hệ thống.

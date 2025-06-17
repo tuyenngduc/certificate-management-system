@@ -48,8 +48,6 @@ func (s *authService) RequestOTP(ctx context.Context, input models.RequestOTPInp
 	if err != nil {
 		return common.ErrUserNotExisted
 	}
-
-	// 2. Kiểm tra đã có tài khoản cá nhân chưa
 	existingAccount, err := s.authRepo.FindPersonalAccountByUserID(ctx, user.ID)
 	if err != nil {
 		return common.ErrCheckingPersonalAccount
@@ -99,7 +97,6 @@ func (s *authService) VerifyOTP(ctx context.Context, input *models.VerifyOTPRequ
 }
 
 func (s *authService) Register(ctx context.Context, req models.RegisterRequest) error {
-	// Check xem PersonalEmail đã tồn tại chưa
 	exists, err := s.authRepo.IsPersonalEmailExist(ctx, req.PersonalEmail)
 	if err != nil {
 		return fmt.Errorf("lỗi kiểm tra email: %w", err)
@@ -108,19 +105,16 @@ func (s *authService) Register(ctx context.Context, req models.RegisterRequest) 
 		return fmt.Errorf("email cá nhân đã được sử dụng")
 	}
 
-	// Parse user_id
 	userObjID, err := primitive.ObjectIDFromHex(req.UserID)
 	if err != nil {
 		return fmt.Errorf("user_id không hợp lệ")
 	}
 
-	// Lấy user để lấy email sinh viên
 	user, err := s.userRepo.GetUserByID(ctx, userObjID)
 	if err != nil {
 		return fmt.Errorf("không tìm thấy user: %v", err)
 	}
 
-	// Hash mật khẩu
 	hash, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return fmt.Errorf("lỗi hash mật khẩu: %w", err)

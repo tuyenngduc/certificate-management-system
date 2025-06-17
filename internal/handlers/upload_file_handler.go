@@ -30,14 +30,13 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 	}
 	defer src.Close()
 
-	// Đọc nội dung file vào []byte
 	fileData, err := io.ReadAll(src)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi đọc file"})
 		return
 	}
 
-	objectName := file.Filename // hoặc path có thể là "certificates/2025/filename.pdf"
+	objectName := file.Filename
 	contentType := file.Header.Get("Content-Type")
 
 	err = h.MinioClient.UploadFile(c.Request.Context(), objectName, fileData, contentType)

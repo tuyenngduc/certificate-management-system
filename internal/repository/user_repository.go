@@ -63,7 +63,7 @@ func (r *userRepository) GetUserByID(ctx context.Context, id primitive.ObjectID)
 	return &user, nil
 }
 func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUserParams) ([]*models.User, int64, error) {
-	log.Printf("📥 SearchUserParams received: %+v\n", params)
+	log.Printf(" SearchUserParams received: %+v\n", params)
 
 	filter := bson.M{}
 
@@ -85,7 +85,7 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 	}
 
 	if params.Faculty != "" {
-		log.Println("🔍 Filtering by faculty_code:", params.Faculty)
+		log.Println("Filtering by faculty_code:", params.Faculty)
 
 		var faculty struct {
 			ID primitive.ObjectID `bson:"_id"`
@@ -101,12 +101,12 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 
 		err := r.facultyCol.FindOne(ctx, facultyFilter).Decode(&faculty)
 		if err != nil {
-			log.Println("⚠️ Faculty not found with code:", params.Faculty, "err:", err)
+			log.Println(" Faculty not found with code:", params.Faculty, "err:", err)
 
 			return []*models.User{}, 0, nil
 		} else {
 			filter["faculty_id"] = faculty.ID
-			log.Println("✅ Found faculty_id:", faculty.ID.Hex())
+			log.Println(" Found faculty_id:", faculty.ID.Hex())
 		}
 	}
 
@@ -114,11 +114,10 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 		filter["course"] = bson.M{"$regex": params.Course, "$options": "i"}
 	}
 
-	// Pagination
 	skip := int64((params.Page - 1) * params.PageSize)
 	limit := int64(params.PageSize)
 
-	log.Printf("📦 Final MongoDB filter: %+v\n", filter)
+	log.Printf(" Final MongoDB filter: %+v\n", filter)
 
 	total, err := r.col.CountDocuments(ctx, filter)
 	if err != nil {

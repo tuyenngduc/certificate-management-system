@@ -41,7 +41,7 @@ func (r *authRepository) SaveOTP(ctx context.Context, otp models.OTP) error {
 
 func (r *authRepository) FindLatestOTPByEmail(ctx context.Context, email string) (*models.OTP, error) {
 	var otp models.OTP
-	opts := options.FindOne().SetSort(bson.D{{Key: "expires_at", Value: -1}}) // lấy bản ghi mới nhất
+	opts := options.FindOne().SetSort(bson.D{{Key: "expires_at", Value: -1}})
 	err := r.col.FindOne(ctx, bson.M{"email": email}, opts).Decode(&otp)
 	if err != nil {
 		return nil, err

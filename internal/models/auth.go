@@ -28,9 +28,9 @@ type AccountResponse struct {
 }
 
 type OTP struct {
-	Email     string    `bson:"email"`      // Email trường
-	Code      string    `bson:"code"`       // Mã OTP
-	ExpiresAt time.Time `bson:"expires_at"` // Hết hạn
+	Email     string    `bson:"email"`
+	Code      string    `bson:"code"`
+	ExpiresAt time.Time `bson:"expires_at"`
 }
 
 type RequestOTPInput struct {

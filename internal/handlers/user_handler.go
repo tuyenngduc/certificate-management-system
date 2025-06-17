@@ -67,7 +67,6 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 		params.PageSize = 10
 	}
 
-	// Gọi service với request.Context đã chứa claims
 	users, total, err := h.userService.SearchUsers(c.Request.Context(), params)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -117,7 +116,6 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// Truyền thêm `claims` vào service
 	resp, err := h.userService.CreateUser(c.Request.Context(), claims, &req)
 	if err != nil {
 		switch {
@@ -161,7 +159,6 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	// Lấy claims từ context
 	claimsVal := c.Request.Context().Value(utils.ClaimsContextKey)
 	claims, ok := claimsVal.(*utils.CustomClaims)
 	if !ok || claims == nil {
@@ -169,7 +166,6 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	// Tạo context mới có chứa claims để truyền vào service
 	ctx := context.WithValue(c.Request.Context(), utils.ClaimsContextKey, claims)
 
 	err = h.userService.UpdateUser(ctx, id, req)
@@ -267,7 +263,7 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 
 	for i, row := range rows {
 		if i == 0 {
-			continue // Bỏ qua dòng tiêu đề
+			continue
 		}
 
 		result := map[string]interface{}{"row": i + 1}

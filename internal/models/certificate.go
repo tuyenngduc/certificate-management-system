@@ -76,7 +76,6 @@ func ValidateCreateCertificateRequest(sl validator.StructLevel) {
 	req := sl.Current().Interface().(CreateCertificateRequest)
 
 	if req.IsDegree {
-		// Đang tạo văn bằng, cần kiểm tra các trường liên quan
 		if req.CertificateType == "" {
 			sl.ReportError(req.CertificateType, "certificate_type", "CertificateType", "required_if_degree", "")
 		}

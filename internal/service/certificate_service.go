@@ -237,7 +237,6 @@ func (s *certificateService) validateCertificateRequest(ctx context.Context, req
 }
 
 func (s *certificateService) GetAllCertificates(ctx context.Context) ([]*models.CertificateResponse, error) {
-	// Lấy tất cả certificate từ repository
 	certs, err := s.certificateRepo.GetAllCertificates(ctx)
 	if err != nil {
 		return nil, err
@@ -246,17 +245,14 @@ func (s *certificateService) GetAllCertificates(ctx context.Context) ([]*models.
 	responses := make([]*models.CertificateResponse, 0, len(certs))
 
 	for _, cert := range certs {
-		// Lấy faculty
 		faculty, err := s.facultyRepo.FindByID(ctx, cert.FacultyID)
 		if err != nil || faculty == nil {
-			// Nếu không tìm thấy faculty thì có thể bỏ qua hoặc gán giá trị mặc định
 			faculty = &models.Faculty{
 				FacultyCode: "N/A",
 				FacultyName: "Không xác định",
 			}
 		}
 
-		// Lấy university
 		university, err := s.universityRepo.FindByID(ctx, cert.UniversityID)
 		if err != nil || university == nil {
 			university = &models.University{
@@ -330,6 +326,7 @@ func (s *certificateService) GetCertificateByID(ctx context.Context, id primitiv
 		FacultyName:     faculty.FacultyName,
 		UniversityCode:  university.UniversityCode,
 		UniversityName:  university.UniversityName,
+		IssueDate:       cert.IssueDate.Format("02/01/2006"),
 		Signed:          cert.Signed,
 		CreatedAt:       cert.CreatedAt,
 		UpdatedAt:       cert.UpdatedAt,
@@ -362,7 +359,6 @@ func (s *certificateService) UploadCertificateFile(
 	if isDegree {
 		objectKey = fmt.Sprintf("certificates/%s/diploma/%s", university.UniversityCode, filename)
 	} else {
-		// Làm sạch tên chứng chỉ (nếu cần)
 		cleanName := strings.ReplaceAll(strings.TrimSpace(certificateName), " ", "_")
 		objectKey = fmt.Sprintf("certificates/%s/%s/%s", university.UniversityCode, cleanName, filename)
 	}
@@ -530,13 +526,11 @@ func (s *certificateService) GetCertificatesByUserID(ctx context.Context, userID
 
 	var responses []*models.CertificateResponse
 	for _, cert := range certs {
-		// Lấy user
 		user, err := s.userRepo.GetUserByID(ctx, cert.UserID)
 		if err != nil || user == nil {
 			continue
 		}
 
-		// Lấy khoa
 		faculty, _ := s.facultyRepo.FindByID(ctx, cert.FacultyID)
 		if faculty == nil {
 			faculty = &models.Faculty{
@@ -545,7 +539,6 @@ func (s *certificateService) GetCertificatesByUserID(ctx context.Context, userID
 			}
 		}
 
-		// Lấy trường
 		university, _ := s.universityRepo.FindByID(ctx, cert.UniversityID)
 		if university == nil {
 			university = &models.University{

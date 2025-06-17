@@ -310,9 +310,8 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 	}
 
 	isDegree := c.Query("is_degree") == "true"
-	certificateName := c.Query("name") // chỉ cần khi isDegree = false
+	certificateName := c.Query("name")
 
-	// Lấy university từ token
 	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ (UniversityID không đúng định dạng)"})
@@ -328,12 +327,10 @@ func (h *CertificateHandler) UploadCertificateFile(c *gin.Context) {
 	var certificate *models.Certificate
 
 	if isDegree {
-		// Tên file là serial_number.pdf
 		serialNumber := filenameWithoutExt
 		certificate, err = h.certificateService.GetCertificateBySerialAndUniversity(
 			c.Request.Context(), serialNumber, university.ID)
 	} else {
-		// Tên file là student_code.pdf, certificate name lấy từ query
 		if certificateName == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu tên chứng chỉ (query param 'name')"})
 			return
@@ -434,28 +431,24 @@ func (h *CertificateHandler) GetCertificatesByStudentID(c *gin.Context) {
 		return
 	}
 
-	// Lấy thông tin sinh viên
 	user, err := h.userService.GetUserByID(ctx, studentID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy sinh viên"})
 		return
 	}
 
-	// Lấy thông tin faculty
 	faculty, err := h.facultyService.GetFacultyByCode(ctx, user.FacultyCode)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tìm thấy khoa"})
 		return
 	}
 
-	// Lấy thông tin university
 	university, err := h.universityService.GetUniversityByCode(ctx, user.UniversityCode)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không tìm thấy trường đại học"})
 		return
 	}
 
-	// Lấy danh sách văn bằng
 	certificate, err := h.certificateService.GetCertificateByUserID(ctx, studentID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy văn bằng của người dùng"})

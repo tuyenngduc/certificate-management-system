@@ -191,8 +191,8 @@ func (r *certificateRepository) ExistsDegreeByStudentCodeAndType(ctx context.Con
 		"student_code":        studentCode,
 		"university_id":       universityID,
 		"certificate_type":    certType,
-		"serial_number":       bson.M{"$ne": ""}, // Văn bằng có serial
-		"registration_number": bson.M{"$ne": ""}, // Có số vào sổ gốc
+		"serial_number":       bson.M{"$ne": ""},
+		"registration_number": bson.M{"$ne": ""},
 	}
 
 	count, err := r.col.CountDocuments(ctx, filter)

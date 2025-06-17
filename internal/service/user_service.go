@@ -182,19 +182,16 @@ func (s *userService) CreateUser(ctx context.Context, claims *utils.CustomClaims
 		return nil, common.ErrEmailExists
 	}
 
-	// Lấy University từ ID
 	university, err := s.universityRepo.FindByID(ctx, universityID)
 	if err != nil || university == nil {
 		return nil, common.ErrUniversityNotFound
 	}
 
-	// Tìm Faculty theo code + university_id
 	faculty, err := s.facultyRepo.FindByCodeAndUniversityID(ctx, req.FacultyCode, universityID)
 	if err != nil || faculty == nil {
 		return nil, common.ErrFacultyNotFound
 	}
 
-	// Tạo user
 	user := &models.User{
 		ID:           primitive.NewObjectID(),
 		StudentCode:  req.StudentCode,
@@ -212,7 +209,6 @@ func (s *userService) CreateUser(ctx context.Context, claims *utils.CustomClaims
 		return nil, err
 	}
 
-	// Trả về response
 	resp := &models.UserResponse{
 		ID:             user.ID,
 		StudentCode:    user.StudentCode,
@@ -232,26 +228,23 @@ func (s *userService) CreateUser(ctx context.Context, claims *utils.CustomClaims
 func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req models.UpdateUserRequest) error {
 	update := bson.M{}
 
-	// Lấy claims từ context
 	claimsVal := ctx.Value(utils.ClaimsContextKey)
 	claims, ok := claimsVal.(*utils.CustomClaims)
 	if !ok || claims == nil {
 		return common.ErrUnauthorized
 	}
 
-	// Parse university ID từ claims
 	universityID, err := primitive.ObjectIDFromHex(claims.UniversityID)
 	if err != nil {
 		return common.ErrInvalidToken
 	}
 
-	// Cập nhật student_code nếu có và hợp lệ
 	if req.StudentCode != nil {
 		studentCode := strings.TrimSpace(*req.StudentCode)
 		if studentCode != "" {
 			exist, err := s.userRepo.FindByStudentCodeAndUniversityID(ctx, studentCode, universityID)
 			if err != nil {
-				return err // lỗi truy vấn DB
+				return err
 			}
 			if exist != nil && exist.ID != id {
 				return common.ErrStudentIDExists
@@ -260,7 +253,6 @@ func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req
 		}
 	}
 
-	// Cập nhật email nếu có và hợp lệ
 	if req.Email != nil {
 		email := strings.TrimSpace(*req.Email)
 		if email != "" {
@@ -275,7 +267,6 @@ func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req
 		}
 	}
 
-	// Cập nhật full_name nếu có và không rỗng
 	if req.FullName != nil {
 		fullName := strings.TrimSpace(*req.FullName)
 		if fullName != "" {
@@ -283,7 +274,6 @@ func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req
 		}
 	}
 
-	// Cập nhật course nếu có và không rỗng
 	if req.Course != nil {
 		course := strings.TrimSpace(*req.Course)
 		if course != "" {
@@ -291,7 +281,6 @@ func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req
 		}
 	}
 
-	// Cập nhật faculty nếu có và hợp lệ
 	if req.FacultyCode != nil {
 		facultyCode := strings.TrimSpace(*req.FacultyCode)
 		if facultyCode != "" {
@@ -306,15 +295,12 @@ func (s *userService) UpdateUser(ctx context.Context, id primitive.ObjectID, req
 		}
 	}
 
-	// Cập nhật thời gian cập nhật
 	update["updated_at"] = time.Now()
 
-	// Nếu ngoài updated_at không có trường nào khác được cập nhật => lỗi
 	if len(update) == 1 {
 		return errors.New("không có trường nào để cập nhật")
 	}
 
-	// Thực hiện cập nhật user trong repo
 	return s.userRepo.UpdateUser(ctx, id, update)
 }
 
@@ -322,19 +308,16 @@ func (s *userService) DeleteUser(ctx context.Context, id primitive.ObjectID) err
 	return s.userRepo.DeleteUser(ctx, id)
 }
 func (s *userService) GetUsersByFacultyCode(ctx context.Context, code string) ([]models.UserResponse, error) {
-	// Tìm faculty theo code
 	faculty, err := s.facultyRepo.FindByFacultyCode(ctx, code)
 	if err != nil || faculty == nil {
 		return nil, fmt.Errorf("không tìm thấy khoa với mã %s", code)
 	}
 
-	// Lấy user theo FacultyID
 	users, err := s.userRepo.FindUsersByFacultyID(ctx, faculty.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Map sang response
 	var responses []models.UserResponse
 	for _, u := range users {
 		university, _ := s.universityRepo.FindByID(ctx, u.UniversityID)
@@ -375,7 +358,6 @@ func (s *userService) GetMyProfile(ctx context.Context) (*models.UserResponse, e
 		return nil, common.ErrUserNotExisted
 	}
 
-	// Lấy thêm thông tin faculty và university
 	faculty, err := s.facultyRepo.FindByID(ctx, user.FacultyID)
 	if err != nil {
 		return nil, err

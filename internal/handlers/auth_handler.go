@@ -241,7 +241,6 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 func (h *AuthHandler) GetUniversityAdmins(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Lấy danh sách account có role = university_admin
 	adminAccounts, err := h.authService.GetAccountsByRole(ctx, "university_admin")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi khi lấy tài khoản"})
@@ -261,10 +260,8 @@ func (h *AuthHandler) GetUniversityAdmins(c *gin.Context) {
 	var result []AdminWithUniversityInfo
 
 	for _, acc := range adminAccounts {
-		// Lấy thông tin trường theo acc.UniversityID
 		univ, err := h.universityService.GetUniversityByID(ctx, acc.UniversityID)
 		if err != nil {
-			// Có thể bỏ qua account nếu lỗi lấy trường, hoặc handle theo ý bạn
 			continue
 		}
 
@@ -294,7 +291,6 @@ type AccountWithDetailsResponse struct {
 func (h *AuthHandler) GetStudentAccounts(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	// Lấy role "student"
 	accounts, err := h.authService.GetAccountsByRole(ctx, "student")
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
