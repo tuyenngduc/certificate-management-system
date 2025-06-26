@@ -25,7 +25,7 @@ orderers:
     grpcOptions:
       ssl-target-name-override: orderer.example.com
     tlsCACerts:
-      path: /home/tuyenngduc/go/src/github.com/tuyenngduc/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt
+      path: /home/tuyenngduc/workspaces/customize_fabric/Kmasc/fabric-3.1.1/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt
 
 peers:
   peer0.org1.example.com:

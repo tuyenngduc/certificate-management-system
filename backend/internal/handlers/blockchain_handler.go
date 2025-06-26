@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tuyenngduc/certificate-management-system/backend/internal/service"
@@ -43,4 +44,42 @@ func (h *BlockchainHandler) GetCertificateByID(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+}
+func (h *BlockchainHandler) VerifyCertificateIntegrity(c *gin.Context) {
+	certID := c.Param("id")
+	if certID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu ID văn bằng"})
+		return
+	}
+
+	ok, msg, onChainCert, err := h.BlockchainSvc.VerifyCertificateIntegrity(c.Request.Context(), certID)
+	if err != nil {
+		switch {
+		case strings.Contains(err.Error(), "certID không hợp lệ"):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case strings.Contains(err.Error(), "không tìm thấy"):
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Lỗi khi xác minh dữ liệu",
+				"message": err.Error(),
+			})
+		}
+		return
+	}
+
+	if !ok {
+		c.JSON(http.StatusConflict, gin.H{
+			"valid":    false,
+			"message":  msg,
+			"on_chain": onChainCert,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"valid":    true,
+		"message":  msg,
+		"on_chain": onChainCert,
+	})
 }

@@ -13,6 +13,7 @@ import (
 
 type CertificateRepository interface {
 	GetAllCertificates(ctx context.Context) ([]*models.Certificate, error)
+	UpdateCertificateByID(ctx context.Context, id primitive.ObjectID, update bson.M) error
 	FindOne(ctx context.Context, filter interface{}) (*models.Certificate, error)
 	GetCertificateByID(ctx context.Context, id primitive.ObjectID) (*models.Certificate, error)
 	FindCertificateByStudentCodeAndName(ctx context.Context, studentCode, name string, universityID primitive.ObjectID) (*models.Certificate, error)
@@ -41,6 +42,10 @@ func NewCertificateRepository(db *mongo.Database) CertificateRepository {
 
 func (r *certificateRepository) CreateCertificate(ctx context.Context, cert *models.Certificate) error {
 	_, err := r.col.InsertOne(ctx, cert)
+	return err
+}
+func (r *certificateRepository) UpdateCertificateByID(ctx context.Context, id primitive.ObjectID, update bson.M) error {
+	_, err := r.col.UpdateByID(ctx, id, update)
 	return err
 }
 

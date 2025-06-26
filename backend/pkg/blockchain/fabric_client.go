@@ -51,6 +51,7 @@ func (fc *FabricClient) IssueCertificate(cert any) (string, error) {
 	fmt.Println("Step: Connecting gateway with CCP:", fc.cfg.CCPPath)
 	fmt.Println("Step: Getting network:", fc.cfg.ChannelName)
 	fmt.Println("Step: Getting contract:", fc.cfg.ChaincodeName)
+
 	wallet, err := gateway.NewFileSystemWallet(fc.cfg.WalletPath)
 	if err != nil {
 		return "", fmt.Errorf("không tạo được wallet: %v", err)
@@ -74,7 +75,10 @@ func (fc *FabricClient) IssueCertificate(cert any) (string, error) {
 	}
 
 	contract := network.GetContract(fc.cfg.ChaincodeName)
-	certBytes, _ := json.Marshal(cert)
+	certBytes, err := json.Marshal(cert)
+	if err != nil {
+		return "", fmt.Errorf("không thể marshal certificate: %v", err)
+	}
 
 	endorsingPeers := []string{
 		"peer0.org1.example.com:7051",
@@ -95,7 +99,11 @@ func (fc *FabricClient) IssueCertificate(cert any) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invoke chaincode lỗi: %v", err)
 	}
-	return string(result), nil
+
+	txID := string(result)
+	fmt.Printf("transaction ID from chaincode = %s\n", txID)
+
+	return txID, nil
 }
 
 func (fc *FabricClient) GetCertificateByID(certificateID string) (*models.CertificateOnChain, error) {
@@ -133,4 +141,54 @@ func (fc *FabricClient) GetCertificateByID(certificateID string) (*models.Certif
 		return nil, fmt.Errorf("unmarshal error: %v", err)
 	}
 	return &cert, nil
+}
+
+func (fc *FabricClient) UpdateCertificate(cert any) error {
+	wallet, err := gateway.NewFileSystemWallet(fc.cfg.WalletPath)
+	if err != nil {
+		return fmt.Errorf("cannot create wallet: %v", err)
+	}
+	if !wallet.Exists(fc.cfg.Identity) {
+		return fmt.Errorf("identity %s does not exist in wallet", fc.cfg.Identity)
+	}
+
+	gw, err := gateway.Connect(
+		gateway.WithConfig(config.FromFile(filepath.Clean(fc.cfg.CCPPath))),
+		gateway.WithIdentity(wallet, fc.cfg.Identity),
+	)
+	if err != nil {
+		return fmt.Errorf("gateway connect failed: %v", err)
+	}
+	defer gw.Close()
+
+	network, err := gw.GetNetwork(fc.cfg.ChannelName)
+	if err != nil {
+		return fmt.Errorf("cannot get network: %v", err)
+	}
+
+	contract := network.GetContract(fc.cfg.ChaincodeName)
+
+	certBytes, err := json.Marshal(cert)
+	if err != nil {
+		return fmt.Errorf("cannot marshal certificate: %v", err)
+	}
+
+	endorsingPeers := []string{
+		"peer0.org1.example.com:7051",
+		"peer0.org2.example.com:9051",
+	}
+
+	tx, err := contract.CreateTransaction("UpdateCertificate",
+		gateway.WithEndorsingPeers(endorsingPeers...),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create transaction: %v", err)
+	}
+
+	_, err = tx.Submit(string(certBytes))
+	if err != nil {
+		return fmt.Errorf("chaincode invoke (UpdateCertificate) failed: %v", err)
+	}
+
+	return nil
 }

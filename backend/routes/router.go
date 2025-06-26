@@ -68,7 +68,6 @@ func SetupRouter(
 	certificateGroup.GET("/student/:id", certificateHandler.GetCertificatesByStudentID)
 	certificateGroup.GET("/search", certificateHandler.SearchCertificates)
 	certificateGroup.GET("/my-certificate", certificateHandler.GetMyCertificates)
-	certificateGroup.POST("/import-excel", certificateHandler.ImportCertificatesFromExcel)
 	certificateGroup.DELETE("/:id", certificateHandler.DeleteCertificate)
 	certificateGroup.GET("/simple", certificateHandler.GetMyCertificateNames)
 
@@ -97,6 +96,7 @@ func SetupRouter(
 	blockchainGroup := api.Group("/blockchain")
 	blockchainGroup.POST("/push-chain/:id", blockchainHandler.PushCertificateToChain)
 	blockchainGroup.GET("/certificate-on-chain/:id", blockchainHandler.GetCertificateByID)
+	blockchainGroup.GET("/verify/:id", blockchainHandler.VerifyCertificateIntegrity)
 
 	return r
 }
