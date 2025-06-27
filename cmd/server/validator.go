@@ -31,7 +31,7 @@ func InitValidator() {
 		_ = v.RegisterValidation("dateformat", func(fl validator.FieldLevel) bool {
 			dateStr := fl.Field().String()
 			if dateStr == "" {
-				return true // Allow empty string
+				return false
 			}
 			_, err := time.Parse("02/01/2006", dateStr)
 			return err == nil
@@ -41,7 +41,7 @@ func InitValidator() {
 		_ = v.RegisterValidation("citizenid", func(fl validator.FieldLevel) bool {
 			idStr := fl.Field().String()
 			if idStr == "" {
-				return true // Allow empty string
+				return false
 			}
 			// Check if the ID 12 digits (old and new format)
 			re := regexp.MustCompile(`^\d{12}$`)
@@ -51,7 +51,7 @@ func InitValidator() {
 		// Add validator for discipline level
 		_ = v.RegisterValidation("disciplinelevel", func(fl validator.FieldLevel) bool {
 			if fl.Field().IsNil() {
-				return true // Allow nil/empty
+				return false
 			}
 			level := int(fl.Field().Int())
 			return level >= 1 && level <= 4

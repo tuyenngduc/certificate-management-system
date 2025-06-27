@@ -11,6 +11,12 @@ func TranslateError(field, tag string) string {
 		"StudentID": {
 			"required": "Mã sinh viên không được để trống",
 		},
+		"StudentCode": {
+			"required": "Mã sinh viên không được để trống",
+		},
+		"FacultyCode": {
+			"required": "Mã khoa không được để trống",
+		},
 		"FullName": {
 			"required": "Họ tên không được để trống",
 		},
@@ -78,7 +84,7 @@ func TranslateError(field, tag string) string {
 		},
 		"CitizenIdNumber": {
 			"required":  "Số căn cước công dân không được để trống",
-			"citizenid": "Số căn cước công dân phải có 9 hoặc 12 chữ số",
+			"citizenid": "Số căn cước công dân phải có đúng 12 chữ số",
 		},
 		"DateOfBirth": {
 			"required":   "Ngày sinh không được để trống",

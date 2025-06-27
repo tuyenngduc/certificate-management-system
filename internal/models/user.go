@@ -34,14 +34,14 @@ type CreateUserRequest struct {
 	Email           string `json:"email" binding:"required,email"`
 	FacultyCode     string `json:"faculty_code" binding:"required"`
 	Course          string `json:"course" binding:"required,courseyear"`
-	CitizenIdNumber string `json:"citizen_id_number" binding:"required"`
+	CitizenIdNumber string `json:"citizen_id_number" binding:"required,citizenid"`
 	Gender          bool   `json:"gender"`
-	DateOfBirth     string `json:"date_of_birth" binding:"required"`
+	DateOfBirth     string `json:"date_of_birth" binding:"required,dateformat"`
 	Ethnicity       string `json:"ethnicity"`
 	CurrentAddress  string `json:"current_address"`
 	BirthAddress    string `json:"birth_address"`
-	UnionJoinDate   string `json:"union_join_date"`
-	PartyJoinDate   string `json:"party_join_date"`
+	UnionJoinDate   string `json:"union_join_date" binding:"omitempty,dateformat"`
+	PartyJoinDate   string `json:"party_join_date" binding:"omitempty,dateformat"`
 	Description     string `json:"description"`
 }
 
@@ -85,14 +85,14 @@ type UpdateUserRequest struct {
 	FullName        *string `json:"full_name" binding:"omitempty"`
 	Email           *string `json:"email" binding:"omitempty,email"`
 	FacultyCode     *string `json:"faculty_code" binding:"omitempty"`
-	Course          *string `json:"course" binding:"omitempty"`
-	CitizenIdNumber *string `json:"citizen_id_number" binding:"omitempty"`
+	Course          *string `json:"course" binding:"omitempty,courseyear"`
+	CitizenIdNumber *string `json:"citizen_id_number" binding:"omitempty,citizenid"`
 	Gender          *bool   `json:"gender" binding:"omitempty"`
-	DateOfBirth     *string `json:"date_of_birth" binding:"omitempty"`
+	DateOfBirth     *string `json:"date_of_birth" binding:"omitempty,dateformat"`
 	Ethnicity       *string `json:"ethnicity" binding:"omitempty"`
 	CurrentAddress  *string `json:"current_address" binding:"omitempty"`
 	BirthAddress    *string `json:"birth_address" binding:"omitempty"`
-	UnionJoinDate   *string `json:"union_join_date" binding:"omitempty"`
-	PartyJoinDate   *string `json:"party_join_date" binding:"omitempty"`
+	UnionJoinDate   *string `json:"union_join_date" binding:"omitempty,dateformat"`
+	PartyJoinDate   *string `json:"party_join_date" binding:"omitempty,dateformat"`
 	Description     *string `json:"description" binding:"omitempty"`
 }

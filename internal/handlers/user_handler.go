@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/tuyenngduc/certificate-management-system/internal/common"
 	"github.com/tuyenngduc/certificate-management-system/internal/models"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
@@ -22,7 +24,9 @@ type UserHandler struct {
 }
 
 func NewUserHandler(s service.UserService) *UserHandler {
-	return &UserHandler{userService: s}
+	return &UserHandler{
+		userService: s,
+	}
 }
 
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
@@ -274,20 +278,15 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 			continue
 		}
 
+		// Map Excel columns to proper field names for better validation
 		user := &models.CreateUserRequest{
-			StudentCode: row[0],
-			FullName:    row[1],
-			Email:       row[2],
-			FacultyCode: row[3],
-			Course:      row[4],
-		}
-
-		if len(row) > 5 && row[5] != "" {
-			user.CitizenIdNumber = row[5]
-		}
-
-		if len(row) > 6 && row[6] != "" {
-			user.Gender = row[6] == "true" || row[6] == "1" || row[6] == "Nam"
+			StudentCode:     strings.TrimSpace(row[0]),
+			FullName:        strings.TrimSpace(row[1]),
+			Email:           strings.TrimSpace(row[2]),
+			FacultyCode:     strings.TrimSpace(row[3]),
+			Course:          strings.TrimSpace(row[4]),
+			CitizenIdNumber: strings.TrimSpace(row[5]),
+			Gender:          row[6] == "Nam",
 		}
 
 		if len(row) > 7 && row[7] != "" {
@@ -318,6 +317,22 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 			user.Description = row[13]
 		}
 
+		// Validate the user data first
+		if err := validator.New().Struct(user); err != nil {
+			if errs, ok := common.ParseValidationError(err); ok {
+				// Combine all validation errors into a single message
+				var errorMsgs []string
+				for _, msg := range errs {
+					errorMsgs = append(errorMsgs, msg)
+				}
+				result["error"] = strings.Join(errorMsgs, "; ")
+			} else {
+				result["error"] = "Dữ liệu không hợp lệ"
+			}
+			errorResults = append(errorResults, result)
+			continue
+		}
+
 		_, err := h.userService.CreateUser(c.Request.Context(), claims, user)
 		if err != nil {
 			switch {
@@ -333,6 +348,7 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 				result["error"] = "Không tìm thấy khoa"
 			case errors.Is(err, common.ErrUniversityNotFound):
 				result["error"] = "Không tìm thấy trường đại học"
+
 			default:
 				result["error"] = err.Error()
 			}
