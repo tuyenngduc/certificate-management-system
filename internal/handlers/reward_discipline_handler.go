@@ -40,7 +40,7 @@ func (h *RewardDisciplineHandler) CreateRewardDiscipline(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case common.ErrUserNotExisted:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Không tìm thấy sinh viên với mã số này"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Không tìm thấy sinh viên với mã sinh viên này"})
 		case common.ErrDecisionNumberExists:
 			c.JSON(http.StatusConflict, gin.H{"error": "Số quyết định đã tồn tại"})
 		default:
