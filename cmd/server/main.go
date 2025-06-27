@@ -59,6 +59,7 @@ func main() {
 	certificateRepo := repository.NewCertificateRepository(db)
 	facultyRepo := repository.NewFacultyRepository(db)
 	verificationRepo := repository.NewVerificationRepository(db)
+	rewardDisciplineRepo := repository.NewRewardDisciplineRepository(db)
 
 	// Services
 	userService := service.NewUserService(userRepo, universityRepo, facultyRepo)
@@ -67,6 +68,7 @@ func main() {
 	certificateService := service.NewCertificateService(certificateRepo, userRepo, facultyRepo, universityRepo, minioClient)
 	facultyService := service.NewFacultyService(universityRepo, facultyRepo)
 	verificationService := service.NewVerificationService(verificationRepo, certificateService)
+	rewardDisciplineService := service.NewRewardDisciplineService(rewardDisciplineRepo, userRepo)
 
 	// Handlers
 	facultyHandler := handlers.NewFacultyHandler(facultyService)
@@ -80,6 +82,7 @@ func main() {
 		certificateService,
 		minioClient,
 	)
+	rewardDisciplineHandler := handlers.NewRewardDisciplineHandler(rewardDisciplineService)
 
 	fileHandler := handlers.NewFileHandler(minioClient)
 	// Repository
@@ -93,6 +96,7 @@ func main() {
 		facultyHandler,
 		fileHandler,
 		verificationHandler,
+		rewardDisciplineHandler,
 	)
 
 	// Xử lý tín hiệu dừng

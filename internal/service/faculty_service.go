@@ -48,12 +48,15 @@ func (s *facultyService) CreateFaculty(ctx context.Context, claims *utils.Custom
 		return nil, common.ErrFacultyCodeExists
 	}
 
+	now := time.Now()
 	faculty = &models.Faculty{
 		ID:           primitive.NewObjectID(),
 		FacultyCode:  req.FacultyCode,
 		FacultyName:  req.FacultyName,
+		Description:  req.Description,
 		UniversityID: universityID,
-		CreatedAt:    time.Now(),
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 
 	if err := s.facultyRepo.Create(ctx, faculty); err != nil {
@@ -64,9 +67,12 @@ func (s *facultyService) CreateFaculty(ctx context.Context, claims *utils.Custom
 		ID:          faculty.ID,
 		FacultyCode: faculty.FacultyCode,
 		FacultyName: faculty.FacultyName,
+		Description: faculty.Description,
 		CreatedAt:   faculty.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   faculty.UpdatedAt.Format(time.RFC3339),
 	}, nil
 }
+
 func (s *facultyService) GetFacultyByCode(ctx context.Context, code string) (*models.Faculty, error) {
 	return s.facultyRepo.FindByFacultyCode(ctx, code)
 }
@@ -74,6 +80,7 @@ func (s *facultyService) GetFacultyByCode(ctx context.Context, code string) (*mo
 func (s *facultyService) GetAllFaculties(ctx context.Context, universityID primitive.ObjectID) ([]*models.Faculty, error) {
 	return s.facultyRepo.FindAllByUniversityID(ctx, universityID)
 }
+
 func (s *facultyService) GetFacultyByID(ctx context.Context, id primitive.ObjectID) (*models.FacultyResponse, error) {
 	faculty, err := s.facultyRepo.FindByID(ctx, id)
 	if err != nil {
@@ -87,7 +94,9 @@ func (s *facultyService) GetFacultyByID(ctx context.Context, id primitive.Object
 		ID:          faculty.ID,
 		FacultyCode: faculty.FacultyCode,
 		FacultyName: faculty.FacultyName,
+		Description: faculty.Description,
 		CreatedAt:   faculty.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   faculty.UpdatedAt.Format(time.RFC3339),
 	}
 	return resp, nil
 }
@@ -103,7 +112,9 @@ func (s *facultyService) UpdateFaculty(ctx context.Context, idStr string, req *m
 		return nil, common.ErrFacultyNotFound
 	}
 
-	update := bson.M{}
+	update := bson.M{
+		"updated_at": time.Now(),
+	}
 
 	if req.FacultyCode != "" && req.FacultyCode != faculty.FacultyCode {
 		existing, _ := s.facultyRepo.FindByCodeAndUniversityID(ctx, req.FacultyCode, faculty.UniversityID)
@@ -117,7 +128,11 @@ func (s *facultyService) UpdateFaculty(ctx context.Context, idStr string, req *m
 		update["faculty_name"] = req.FacultyName
 	}
 
-	if len(update) == 0 {
+	if req.Description != faculty.Description {
+		update["description"] = req.Description
+	}
+
+	if len(update) == 1 && update["updated_at"] != nil {
 		return nil, common.ErrNoFieldsToUpdate
 	}
 
@@ -133,6 +148,7 @@ func (s *facultyService) UpdateFaculty(ctx context.Context, idStr string, req *m
 
 	return updatedFaculty, nil
 }
+
 func (s *facultyService) DeleteFaculty(ctx context.Context, idStr string) error {
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {

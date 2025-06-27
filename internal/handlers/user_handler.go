@@ -282,6 +282,42 @@ func (h *UserHandler) ImportUsersFromExcel(c *gin.Context) {
 			Course:      row[4],
 		}
 
+		if len(row) > 5 && row[5] != "" {
+			user.CitizenIdNumber = row[5]
+		}
+
+		if len(row) > 6 && row[6] != "" {
+			user.Gender = row[6] == "true" || row[6] == "1" || row[6] == "Nam"
+		}
+
+		if len(row) > 7 && row[7] != "" {
+			user.DateOfBirth = row[7]
+		}
+
+		if len(row) > 8 && row[8] != "" {
+			user.Ethnicity = row[8]
+		}
+
+		if len(row) > 9 && row[9] != "" {
+			user.CurrentAddress = row[9]
+		}
+
+		if len(row) > 10 && row[10] != "" {
+			user.BirthAddress = row[10]
+		}
+
+		if len(row) > 11 && row[11] != "" {
+			user.UnionJoinDate = row[11]
+		}
+
+		if len(row) > 12 && row[12] != "" {
+			user.PartyJoinDate = row[12]
+		}
+
+		if len(row) > 13 && row[13] != "" {
+			user.Description = row[13]
+		}
+
 		_, err := h.userService.CreateUser(c.Request.Context(), claims, user)
 		if err != nil {
 			switch {

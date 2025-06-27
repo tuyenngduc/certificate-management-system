@@ -76,6 +76,26 @@ func TranslateError(field, tag string) string {
 		"OldPassword": {
 			"required": "Yêu cầu nhập mật khẩu cũ",
 		},
+		"CitizenIdNumber": {
+			"required":  "Số căn cước công dân không được để trống",
+			"citizenid": "Số căn cước công dân phải có 9 hoặc 12 chữ số",
+		},
+		"DateOfBirth": {
+			"required":   "Ngày sinh không được để trống",
+			"dateformat": "Ngày sinh phải có định dạng dd/mm/yyyy",
+		},
+		"UnionJoinDate": {
+			"dateformat": "Ngày vào đoàn phải có định dạng dd/mm/yyyy",
+		},
+		"PartyJoinDate": {
+			"dateformat": "Ngày vào đảng phải có định dạng dd/mm/yyyy",
+		},
+		"DecisionNumber": {
+			"required": "Số quyết định không được để trống",
+		},
+		"DisciplineLevel": {
+			"disciplinelevel": "Mức độ kỷ luật phải từ 1 đến 4",
+		},
 	}
 
 	if fieldMsg, ok := messages[field]; ok {

@@ -71,6 +71,7 @@ func (s *universityService) CreateUniversity(ctx context.Context, req *models.Cr
 		Address:        req.Address,
 		EmailDomain:    req.EmailDomain,
 		UniversityCode: req.UniversityCode,
+		Description:    req.Description,
 		Status:         "pending",
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),

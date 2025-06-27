@@ -15,6 +15,7 @@ func SetupRouter(
 	facultyHandler *handlers.FacultyHandler,
 	fileHandler *handlers.FileHandler,
 	verificationHandler *handlers.VerificationHandler,
+	rewardDisciplineHandler *handlers.RewardDisciplineHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -95,6 +96,18 @@ func SetupRouter(
 	auth := api.Group("/verification").Use(middleware.JWTAuthMiddleware())
 	auth.POST("/create", verificationHandler.CreateVerificationCode)
 	auth.GET("/my-codes", verificationHandler.GetMyCodes)
+
+	// Reward/Discipline routes
+	rdGroup := api.Group("/reward-disciplines")
+	rdGroup.Use(middleware.JWTAuthMiddleware())
+	rdGroup.POST("", rewardDisciplineHandler.CreateRewardDiscipline)
+	rdGroup.GET("", rewardDisciplineHandler.GetAllRewardDisciplines)
+	rdGroup.GET("/:id", rewardDisciplineHandler.GetRewardDisciplineByID)
+	rdGroup.PUT("/:id", rewardDisciplineHandler.UpdateRewardDiscipline)
+	rdGroup.DELETE("/:id", rewardDisciplineHandler.DeleteRewardDiscipline)
+	rdGroup.GET("/search", rewardDisciplineHandler.SearchRewardDisciplines)
+	rdGroup.GET("/my-reward-disciplines", rewardDisciplineHandler.GetMyRewardDisciplines)
+	rdGroup.POST("/import-excel", rewardDisciplineHandler.ImportRewardDisciplinesFromExcel)
 
 	return r
 }
