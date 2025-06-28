@@ -54,7 +54,12 @@ func main() {
 		log.Fatalf("Không thể khởi tạo MinIO client: %v", err)
 	}
 	fabricCfg := blockchain.NewFabricConfigFromEnv()
-	fabricClient := blockchain.NewFabricClient(fabricCfg)
+
+	fabricClient, err := blockchain.NewFabricClient(fabricCfg)
+	if err != nil {
+		log.Fatalf("khởi tạo FabricClient thất bại: %v", err)
+	}
+
 	// Repository
 	userRepo := repository.NewUserRepository(db)
 	authRepo := repository.NewAuthRepository(db)

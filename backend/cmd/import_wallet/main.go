@@ -9,7 +9,23 @@ import (
 )
 
 func main() {
-	credPath := "/home/tuyenngduc/go/src/github.com/tuyenngduc/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp"
+	// Lấy đường dẫn đến thư mục MSP từ biến môi trường
+	credPath := os.Getenv("FABRIC_ADMIN_CRED_PATH")
+	if credPath == "" {
+		panic("biến môi trường FABRIC_ADMIN_CRED_PATH chưa được thiết lập")
+	}
+
+	// Lấy MSP ID từ biến môi trường
+	mspID := os.Getenv("FABRIC_MSP_ID")
+	if mspID == "" {
+		panic("biến môi trường FABRIC_MSP_ID chưa được thiết lập")
+	}
+
+	// Lấy tên định danh trong ví
+	identityLabel := os.Getenv("FABRIC_IDENTITY")
+	if identityLabel == "" {
+		identityLabel = "admin" // fallback nếu không thiết lập
+	}
 
 	// Đọc file cert
 	certPath := filepath.Join(credPath, "signcerts", "cert.pem")
@@ -18,7 +34,7 @@ func main() {
 		panic(fmt.Errorf("lỗi đọc cert: %w", err))
 	}
 
-	// Đọc file private key (chỉ có 1 file trong keystore)
+	// Đọc file private key từ thư mục keystore
 	keyDir := filepath.Join(credPath, "keystore")
 	keyFiles, err := os.ReadDir(keyDir)
 	if err != nil {
@@ -39,10 +55,10 @@ func main() {
 		panic(fmt.Errorf("lỗi tạo wallet: %w", err))
 	}
 
-	identity := gateway.NewX509Identity("Org1MSP", string(cert), string(key))
-	if err = wallet.Put("admin", identity); err != nil {
+	identity := gateway.NewX509Identity(mspID, string(cert), string(key))
+	if err = wallet.Put(identityLabel, identity); err != nil {
 		panic(fmt.Errorf("lỗi import identity: %w", err))
 	}
 
-	fmt.Println("Đã import admin Org1 vào ví 'wallet'")
+	fmt.Printf(" Đã import %s (%s) vào ví 'wallet'\n", identityLabel, mspID)
 }

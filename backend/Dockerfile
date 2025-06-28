@@ -1,20 +1,26 @@
-# Use an official Python runtime as a parent image
-FROM python:3.11-slim
+FROM golang:1.24.3 AS builder
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
 
-# Make port 8000 available to the world outside this container
-EXPOSE 8000
+RUN CGO_ENABLED=0 GOOS=linux go build -o app ./cmd/server
 
-# Define environment variable
-ENV PYTHONUNBUFFERED=1
+FROM alpine:latest
 
-# Run the application
-CMD ["python", "main.py"]
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/app .
+
+COPY --from=builder /app/config ./config
+COPY --from=builder /app/wallet ./wallet
+COPY --from=builder /app/keystore ./keystore
+
+EXPOSE 8080
+
+CMD ["./app"]
