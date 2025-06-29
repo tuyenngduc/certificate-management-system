@@ -3,8 +3,8 @@ package routes
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/tuyenngduc/certificate-management-system/internal/handlers"
-	"github.com/tuyenngduc/certificate-management-system/internal/middleware"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/handlers"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/middleware"
 )
 
 func SetupRouter(

@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tuyenngduc/certificate-management-system/internal/common"
-	"github.com/tuyenngduc/certificate-management-system/internal/models"
-	"github.com/tuyenngduc/certificate-management-system/internal/service"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/common"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/models"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/service"
 )
 
 type UniversityHandler struct {

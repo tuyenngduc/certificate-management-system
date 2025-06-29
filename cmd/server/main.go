@@ -8,13 +8,13 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
-	"github.com/tuyenngduc/certificate-management-system/internal/handlers"
-	"github.com/tuyenngduc/certificate-management-system/internal/repository"
-	"github.com/tuyenngduc/certificate-management-system/internal/service"
-	"github.com/tuyenngduc/certificate-management-system/pkg/blockchain"
-	"github.com/tuyenngduc/certificate-management-system/pkg/database"
-	"github.com/tuyenngduc/certificate-management-system/routes"
-	"github.com/tuyenngduc/certificate-management-system/utils"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/handlers"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/repository"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/service"
+	"github.com/vnkmasc/Kmasc/app/backend/pkg/blockchain"
+	"github.com/vnkmasc/Kmasc/app/backend/pkg/database"
+	"github.com/vnkmasc/Kmasc/app/backend/routes"
+	"github.com/vnkmasc/Kmasc/app/backend/utils"
 )
 
 func main() {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"github.com/tuyenngduc/certificate-management-system/internal/models"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/models"
 )
 
 func InitValidator() {

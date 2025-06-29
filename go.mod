@@ -1,4 +1,4 @@
-module github.com/tuyenngduc/certificate-management-system
+module github.com/vnkmasc/Kmasc/app/backend
 
 go 1.24.3
 

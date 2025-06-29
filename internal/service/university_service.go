@@ -7,10 +7,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/tuyenngduc/certificate-management-system/internal/common"
-	"github.com/tuyenngduc/certificate-management-system/internal/models"
-	"github.com/tuyenngduc/certificate-management-system/internal/repository"
-	"github.com/tuyenngduc/certificate-management-system/utils"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/common"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/models"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/repository"
+	"github.com/vnkmasc/Kmasc/app/backend/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

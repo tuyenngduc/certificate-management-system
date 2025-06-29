@@ -8,7 +8,7 @@ import (
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
 	"github.com/hyperledger/fabric-sdk-go/pkg/gateway"
-	"github.com/tuyenngduc/certificate-management-system/internal/models"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/models"
 )
 
 type FabricConfig struct {

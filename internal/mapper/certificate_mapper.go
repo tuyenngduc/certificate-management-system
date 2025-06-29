@@ -1,7 +1,7 @@
 package mapper
 
 import (
-	"github.com/tuyenngduc/certificate-management-system/internal/models"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

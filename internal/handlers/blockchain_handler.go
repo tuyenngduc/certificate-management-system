@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tuyenngduc/certificate-management-system/internal/service"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/service"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tuyenngduc/certificate-management-system/internal/common"
-	"github.com/tuyenngduc/certificate-management-system/internal/models"
-	"github.com/tuyenngduc/certificate-management-system/internal/repository"
-	"github.com/tuyenngduc/certificate-management-system/pkg/blockchain"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/common"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/models"
+	"github.com/vnkmasc/Kmasc/app/backend/internal/repository"
+	"github.com/vnkmasc/Kmasc/app/backend/pkg/blockchain"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
