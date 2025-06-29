@@ -11,6 +11,7 @@ import (
 	"github.com/tuyenngduc/certificate-management-system/internal/handlers"
 	"github.com/tuyenngduc/certificate-management-system/internal/repository"
 	"github.com/tuyenngduc/certificate-management-system/internal/service"
+	"github.com/tuyenngduc/certificate-management-system/pkg/blockchain"
 	"github.com/tuyenngduc/certificate-management-system/pkg/database"
 	"github.com/tuyenngduc/certificate-management-system/routes"
 	"github.com/tuyenngduc/certificate-management-system/utils"
@@ -25,6 +26,7 @@ func main() {
 		log.Fatalf("Lỗi khi kết nối MongoDB: %v", err)
 	}
 	db := database.DB
+	fabricCfg := blockchain.NewFabricConfigFromEnv()
 
 	InitValidator()
 	seedAdminAccount(db)
@@ -51,6 +53,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Không thể khởi tạo MinIO client: %v", err)
 	}
+	fabricClient, err := blockchain.NewFabricClient(fabricCfg)
+	if err != nil {
+		log.Fatalf("khởi tạo FabricClient thất bại: %v", err)
+	}
 
 	// Repository
 	userRepo := repository.NewUserRepository(db)
@@ -69,6 +75,9 @@ func main() {
 	facultyService := service.NewFacultyService(universityRepo, facultyRepo)
 	verificationService := service.NewVerificationService(verificationRepo, certificateService)
 	rewardDisciplineService := service.NewRewardDisciplineService(rewardDisciplineRepo, userRepo)
+	blockchainSvc := service.NewBlockchainService(
+		certificateRepo, userRepo, facultyRepo, universityRepo, fabricClient,
+	)
 
 	// Handlers
 	facultyHandler := handlers.NewFacultyHandler(facultyService)
@@ -85,7 +94,7 @@ func main() {
 	rewardDisciplineHandler := handlers.NewRewardDisciplineHandler(rewardDisciplineService)
 
 	fileHandler := handlers.NewFileHandler(minioClient)
-	// Repository
+	blockchainHandler := handlers.NewBlockchainHandler(blockchainSvc)
 
 	// Setup router
 	r := routes.SetupRouter(
@@ -97,6 +106,7 @@ func main() {
 		fileHandler,
 		verificationHandler,
 		rewardDisciplineHandler,
+		blockchainHandler,
 	)
 
 	// Xử lý tín hiệu dừng

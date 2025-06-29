@@ -16,6 +16,8 @@ func SetupRouter(
 	fileHandler *handlers.FileHandler,
 	verificationHandler *handlers.VerificationHandler,
 	rewardDisciplineHandler *handlers.RewardDisciplineHandler,
+	blockchainHandler *handlers.BlockchainHandler,
+
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -69,7 +71,6 @@ func SetupRouter(
 	certificateGroup.GET("/student/:id", certificateHandler.GetCertificatesByStudentID)
 	certificateGroup.GET("/search", certificateHandler.SearchCertificates)
 	certificateGroup.GET("/my-certificate", certificateHandler.GetMyCertificates)
-	certificateGroup.POST("/import-excel", certificateHandler.ImportCertificatesFromExcel)
 	certificateGroup.DELETE("/:id", certificateHandler.DeleteCertificate)
 	certificateGroup.GET("/simple", certificateHandler.GetMyCertificateNames)
 
@@ -108,6 +109,12 @@ func SetupRouter(
 	rdGroup.GET("/search", rewardDisciplineHandler.SearchRewardDisciplines)
 	rdGroup.GET("/my-reward-disciplines", rewardDisciplineHandler.GetMyRewardDisciplines)
 	rdGroup.POST("/import-excel", rewardDisciplineHandler.ImportRewardDisciplinesFromExcel)
+
+	//blockchain
+	blockchainGroup := api.Group("/blockchain")
+	blockchainGroup.POST("/push-chain/:id", blockchainHandler.PushCertificateToChain)
+	blockchainGroup.GET("/certificate-on-chain/:id", blockchainHandler.GetCertificateByID)
+	blockchainGroup.GET("/verify/:id", blockchainHandler.VerifyCertificateIntegrity)
 
 	return r
 }

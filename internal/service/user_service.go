@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -126,6 +127,11 @@ func (s *userService) SearchUsers(ctx context.Context, params models.SearchUserP
 	if err != nil {
 		return nil, 0, err
 	}
+	loc, err := time.LoadLocation("Asia/Ho_Chi_Minh")
+	if err != nil {
+		log.Printf("Error loading timezone Asia/Ho_Chi_Minh: %v. Using UTC instead.", err)
+		loc = time.UTC
+	}
 
 	var responses []models.UserResponse
 	for _, u := range users {
@@ -152,6 +158,8 @@ func (s *userService) SearchUsers(ctx context.Context, params models.SearchUserP
 			UnionJoinDate:   u.UnionJoinDate,
 			PartyJoinDate:   u.PartyJoinDate,
 			Description:     u.Description,
+			CreatedAt:       u.CreatedAt.In(loc).Format("2006-01-02 15:04:05"),
+			UpdatedAt:       u.UpdatedAt.In(loc).Format("2006-01-02 15:04:05"),
 		}
 
 		if faculty != nil {

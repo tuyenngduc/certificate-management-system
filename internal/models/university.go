@@ -32,6 +32,8 @@ type UniversityResponse struct {
 	Address        string `json:"address"`
 	Status         string `json:"status"`
 	Description    string `json:"description"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
 type ApproveOrRejectUniversityRequest struct {

@@ -65,6 +65,8 @@ type UserResponse struct {
 	UnionJoinDate   string             `json:"union_join_date"`
 	PartyJoinDate   string             `json:"party_join_date"`
 	Description     string             `json:"description"`
+	CreatedAt       string             `json:"created_at"`
+	UpdatedAt       string             `json:"updated_at"`
 }
 
 type SearchUserParams struct {
