@@ -3,11 +3,6 @@ version: 1.0.0
 
 client:
   organization: Org1
-  connection:
-    timeout:
-      peer:
-        endorser: '300'
-      orderer: '300'
 
 organizations:
   Org1:
@@ -29,14 +24,14 @@ orderers:
 
 peers:
   peer0.org1.example.com:
-    url: grpcs://peer0.org1.example.com:7051
+    url: grpcs://localhost:7051
     grpcOptions:
       ssl-target-name-override: peer0.org1.example.com
     tlsCACerts:
       path: config/tls/org1-peer0-ca.crt
 
   peer0.org2.example.com:
-    url: grpcs://peer0.org2.example.com:9051
+    url: grpcs://localhost:9051
     grpcOptions:
       ssl-target-name-override: peer0.org2.example.com
     tlsCACerts:
