@@ -83,6 +83,9 @@ func (r *userRepository) SearchUsers(ctx context.Context, params models.SearchUs
 	if params.Status != 0 {
 		filter["status"] = params.Status
 	}
+	if params.CitizenIdNumber != "" {
+		filter["citizen_id_number"] = bson.M{"$regex": params.CitizenIdNumber, "$options": "i"}
+	}
 
 	if params.Faculty != "" {
 		log.Println("Filtering by faculty_code:", params.Faculty)
